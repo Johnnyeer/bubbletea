@@ -1,0 +1,16 @@
+services:
+  web:
+    build: ./frontend
+    depends_on: [api]
+    ports:
+      - "80:80"
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: sqlite:////data/app.db
+      JWT_SECRET: change-me
+    volumes:
+      - ./data:/data
+    expose:
+      - "8000"
