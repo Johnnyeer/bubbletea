@@ -1,6 +1,14 @@
 # backend/app/auth.py
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from functools import wraps
+
+from flask_jwt_extended import (
+    create_access_token,
+    get_jwt,
+    get_jwt_identity,
+    jwt_required,
+    verify_jwt_in_request,
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import select
 from .db import SessionLocal
@@ -10,6 +18,23 @@ bp = Blueprint("auth", __name__, url_prefix="/api")
 
 def _json_error(msg, code=400):
     return jsonify({"error": msg}), code
+
+
+def role_required(*roles):
+    """Ensure the current JWT belongs to one of the provided roles."""
+
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            verify_jwt_in_request()
+            claims = get_jwt() or {}
+            if claims.get("role") not in roles:
+                return _json_error("insufficient permissions", 403)
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 @bp.post("/auth/register")
 def register():
@@ -83,3 +108,55 @@ def me():
         })
     finally:
         db.close()
+
+
+@bp.get("/dashboard/customer")
+@role_required("customer", "staff", "manager")
+def customer_dashboard():
+    """Simple data payload accessible to any authenticated user."""
+
+    claims = get_jwt()
+    return jsonify(
+        {
+            "message": f"Welcome back, {claims.get('name', 'guest')}!",
+            "available_actions": [
+                "Browse menu",
+                "Place new order",
+                "Review past orders",
+            ],
+        }
+    )
+
+
+@bp.get("/dashboard/staff")
+@role_required("staff", "manager")
+def staff_dashboard():
+    """Data relevant to on-shift staff members."""
+
+    return jsonify(
+        {
+            "message": "Staff dashboard",
+            "available_actions": [
+                "Update order status",
+                "Check ingredient inventory",
+                "Review today's schedule",
+            ],
+        }
+    )
+
+
+@bp.get("/dashboard/manager")
+@role_required("manager")
+def manager_dashboard():
+    """Manager-only operational insights."""
+
+    return jsonify(
+        {
+            "message": "Manager analytics overview",
+            "available_actions": [
+                "View revenue analytics",
+                "Assign staff shifts",
+                "Approve menu updates",
+            ],
+        }
+    )
