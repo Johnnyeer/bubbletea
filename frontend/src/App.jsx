@@ -4,7 +4,6 @@ const initialRegisterState = {
     full_name: '',
     email: '',
     password: '',
-    role: 'customer',
 };
 
 const initialLoginState = {
@@ -20,6 +19,7 @@ export default function App() {
     const [user, setUser] = useState(null);
     const [statusMessage, setStatusMessage] = useState('');
     const [dashboardData, setDashboardData] = useState(null);
+    const [activeView, setActiveView] = useState('login');
 
     useEffect(() => {
         fetch('/api/health').then(r => r.json()).then(setHealth).catch(console.error);
@@ -56,6 +56,8 @@ export default function App() {
     }, [token]);
 
     const isAuthenticated = useMemo(() => Boolean(token && user), [token, user]);
+    const showLoginView = activeView === 'login';
+    const showRegisterView = activeView === 'register';
 
     const handleRegisterChange = event => {
         const { name, value } = event.target;
@@ -69,12 +71,12 @@ export default function App() {
 
     const handleRegisterSubmit = event => {
         event.preventDefault();
-        setStatusMessage('Creating account…');
+        setStatusMessage('Creating customer account…');
         setDashboardData(null);
         fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(registerForm),
+            body: JSON.stringify({ ...registerForm, role: 'customer' }),
         })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
@@ -83,6 +85,7 @@ export default function App() {
                 }
                 setStatusMessage('Registration successful. You can now sign in.');
                 setRegisterForm(initialRegisterState);
+                setActiveView('login');
             })
             .catch(error => setStatusMessage(error.message));
     };
@@ -136,15 +139,75 @@ export default function App() {
             });
     };
 
+    const openLoginView = () => {
+        setActiveView('login');
+        setStatusMessage('');
+    };
+
+    const openRegisterView = () => {
+        setActiveView('register');
+        setStatusMessage('');
+        setRegisterForm(initialRegisterState);
+    };
+
     return (
         <div style={{ fontFamily: 'system-ui', padding: 16, lineHeight: 1.5 }}>
             <h1>Restaurant Management</h1>
             <p>Backend health: {health ? health.status : '…'}</p>
 
-            <section style={{ display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-                <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
-                    <h2>Register</h2>
-                    <form onSubmit={handleRegisterSubmit} style={{ display: 'grid', gap: 12 }}>
+            {showLoginView && (
+                <section style={{ maxWidth: 420, border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
+                    <h2>Staff &amp; Manager Sign In</h2>
+                    <p style={{ marginTop: 0, color: '#555' }}>
+                        Sign in to manage orders, inventory, and team performance.
+                    </p>
+                    <form onSubmit={handleLoginSubmit} style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+                        <label>
+                            Email
+                            <input
+                                type="email"
+                                name="email"
+                                value={loginForm.email}
+                                onChange={handleLoginChange}
+                                required
+                                style={{ width: '100%', padding: 8 }}
+                            />
+                        </label>
+                        <label>
+                            Password
+                            <input
+                                type="password"
+                                name="password"
+                                value={loginForm.password}
+                                onChange={handleLoginChange}
+                                required
+                                style={{ width: '100%', padding: 8 }}
+                            />
+                        </label>
+                        <button type="submit" style={{ padding: '8px 12px' }}>Sign in</button>
+                    </form>
+                    {isAuthenticated && (
+                        <button onClick={handleLogout} style={{ marginTop: 12, padding: '6px 10px' }}>
+                            Sign out
+                        </button>
+                    )}
+                    <div style={{ marginTop: 16, fontSize: 14 }}>
+                        <span>Need a customer account?</span>{' '}
+                        <button type="button" onClick={openRegisterView} style={{ padding: '4px 8px' }}>
+                            Create customer profile
+                        </button>
+                    </div>
+                </section>
+            )}
+
+            {showRegisterView && (
+                <section style={{ maxWidth: 480, border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
+                    <h2>Customer Registration</h2>
+                    <p style={{ marginTop: 0, color: '#555' }}>
+                        Create a customer profile to place orders and view your history. Staff and managers should use the
+                        sign-in page.
+                    </p>
+                    <form onSubmit={handleRegisterSubmit} style={{ display: 'grid', gap: 12, marginTop: 12 }}>
                         <label>
                             Full name
                             <input
@@ -177,57 +240,16 @@ export default function App() {
                                 style={{ width: '100%', padding: 8 }}
                             />
                         </label>
-                        <label>
-                            Role
-                            <select
-                                name="role"
-                                value={registerForm.role}
-                                onChange={handleRegisterChange}
-                                style={{ width: '100%', padding: 8 }}
-                            >
-                                <option value="customer">Customer</option>
-                                <option value="staff">Staff</option>
-                                <option value="manager">Manager</option>
-                            </select>
-                        </label>
-                        <button type="submit" style={{ padding: '8px 12px' }}>Create account</button>
+                        <button type="submit" style={{ padding: '8px 12px' }}>Create customer account</button>
                     </form>
-                </div>
-
-                <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
-                    <h2>Login</h2>
-                    <form onSubmit={handleLoginSubmit} style={{ display: 'grid', gap: 12 }}>
-                        <label>
-                            Email
-                            <input
-                                type="email"
-                                name="email"
-                                value={loginForm.email}
-                                onChange={handleLoginChange}
-                                required
-                                style={{ width: '100%', padding: 8 }}
-                            />
-                        </label>
-                        <label>
-                            Password
-                            <input
-                                type="password"
-                                name="password"
-                                value={loginForm.password}
-                                onChange={handleLoginChange}
-                                required
-                                style={{ width: '100%', padding: 8 }}
-                            />
-                        </label>
-                        <button type="submit" style={{ padding: '8px 12px' }}>Sign in</button>
-                    </form>
-                    {isAuthenticated && (
-                        <button onClick={handleLogout} style={{ marginTop: 12, padding: '6px 10px' }}>
-                            Sign out
+                    <div style={{ marginTop: 16, fontSize: 14 }}>
+                        <span>Already managing the restaurant?</span>{' '}
+                        <button type="button" onClick={openLoginView} style={{ padding: '4px 8px' }}>
+                            Go to staff &amp; manager sign in
                         </button>
-                    )}
-                </div>
-            </section>
+                    </div>
+                </section>
+            )}
 
             <section style={{ marginTop: 24 }}>
                 <h2>Current session</h2>
