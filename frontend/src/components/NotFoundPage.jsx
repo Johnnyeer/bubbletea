@@ -1,9 +1,15 @@
+import { primaryButtonStyle } from './styles.js';
+
 export default function NotFoundPage({ navigate }) {
     return (
-        <div>
-            <h2>Page not found</h2>
-            <p>The page you were looking for has moved. Try heading back to the home screen.</p>
-            <button type="button" onClick={() => navigate('/')}>Back to home</button>
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <h2 style={{ marginBottom: 16 }}>Page not found</h2>
+            <p style={{ marginBottom: 24, color: '#4a5568' }}>
+                The page you were looking for has moved. Try heading back to the home screen.
+            </p>
+            <button onClick={() => navigate('/')} style={primaryButtonStyle}>
+                Back to home
+            </button>
         </div>
     );
 }

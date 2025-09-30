@@ -1,69 +1,71 @@
+import { cardStyle, inputStyle, labelStyle, primaryButtonStyle, secondaryButtonStyle } from './styles.js';
+
 export default function AdminPage({ loginForm, onLoginChange, onLoginSubmit, onLogout, isAuthenticated, user, navigate }) {
     return (
-        <section style={{ maxWidth: '40rem' }}>
-            <div style={{ marginBottom: '1.5rem' }}>
-                <h2>Staff and manager sign in</h2>
-                <p>Access the tools for running the shop.</p>
-                <form onSubmit={onLoginSubmit}>
-                    <div style={{ marginBottom: '0.75rem' }}>
-                        <label>
-                            Email
-                            <br />
-                            <input
-                                type="email"
-                                name="email"
-                                value={loginForm.email}
-                                onChange={onLoginChange}
-                                required
-                                style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
-                            />
-                        </label>
-                    </div>
-                    <div style={{ marginBottom: '0.75rem' }}>
-                        <label>
-                            Password
-                            <br />
-                            <input
-                                type="password"
-                                name="password"
-                                value={loginForm.password}
-                                onChange={onLoginChange}
-                                required
-                                style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
-                            />
-                        </label>
-                    </div>
-                    <button type="submit">Sign in</button>
-                    {isAuthenticated && (
-                        <button type="button" onClick={onLogout} style={{ marginLeft: '0.75rem' }}>
-                            Sign out
+        <section style={{ display: 'grid', gap: 24 }}>
+            <div style={cardStyle}>
+                <h2 style={{ marginTop: 0 }}>Staff &amp; manager sign in</h2>
+                <p style={{ marginTop: 8, color: '#4a5568' }}>
+                    Monitor store performance, manage teams, and keep drinks flowing smoothly.
+                </p>
+                <form onSubmit={onLoginSubmit} style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+                    <label style={labelStyle}>
+                        Email
+                        <input
+                            type="email"
+                            name="email"
+                            value={loginForm.email}
+                            onChange={onLoginChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        Password
+                        <input
+                            type="password"
+                            name="password"
+                            value={loginForm.password}
+                            onChange={onLoginChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <button type="submit" style={primaryButtonStyle}>
+                            Sign in
                         </button>
-                    )}
+                        {isAuthenticated && (
+                            <button type="button" onClick={onLogout} style={secondaryButtonStyle}>
+                                Sign out
+                            </button>
+                        )}
+                    </div>
                 </form>
+                <p style={{ marginTop: 16, fontSize: 14, color: '#4a5568' }}>
+                    Taking or tracking an order?{' '}
+                    <a href="/order" onClick={event => handleLink(event, navigate, '/order')} style={{ color: '#0b5ed7' }}>
+                        Switch to the customer order page.
+                    </a>
+                </p>
             </div>
 
-            <p style={{ marginBottom: '1.5rem' }}>
-                Need the customer flow?{' '}
-                <a
-                    href="/order"
-                    onClick={event => {
-                        event.preventDefault();
-                        navigate('/order');
-                    }}
-                >
-                    Go to the order page.
-                </a>
-            </p>
-
             {isAuthenticated && user && (
-                <div>
-                    <h3>Signed in</h3>
-                    <p>
-                        {user.full_name} — {user.role}
+                <div style={{ ...cardStyle, background: '#f0f7ff' }}>
+                    <h3 style={{ marginTop: 0 }}>Signed in as {user.full_name}</h3>
+                    <p style={{ marginTop: 8, color: '#1e3a8a' }}>
+                        Role: <strong>{user.role}</strong>
                     </p>
-                    <p>Open the dashboards from the session panel below.</p>
+                    <p style={{ marginTop: 8, color: '#1e3a8a' }}>
+                        Use the dashboard controls below to access staff or manager tools.
+                    </p>
                 </div>
             )}
         </section>
     );
 }
+
+const handleLink = (event, navigate, path) => {
+    event.preventDefault();
+    navigate(path);
+};
