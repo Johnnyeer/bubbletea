@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminPage from './components/AdminPage.jsx';
 import HomePage from './components/HomePage.jsx';
-import NavigationLink from './components/NavigationLink.jsx';
 import NotFoundPage from './components/NotFoundPage.jsx';
 import OrderPage from './components/OrderPage.jsx';
-import SessionPanel from './components/SessionPanel.jsx';
+
+const NAVIGATION_LINKS = [
+    { to: '/', label: 'Home' },
+    { to: '/order', label: 'Order' },
+    { to: '/admin', label: 'Admin' },
+];
 
 const initialLoginState = {
     email: '',
@@ -152,11 +156,36 @@ export default function App() {
             });
     };
 
+    const systemProps = useMemo(
+        () => ({
+            title: 'Restaurant Management',
+            health,
+            statusMessage,
+            currentPath,
+            navigate,
+            navigation: NAVIGATION_LINKS,
+        }),
+        [health, statusMessage, currentPath, navigate],
+    );
+
+    const sessionProps = useMemo(
+        () => ({
+            isAuthenticated,
+            user,
+            onLoadDashboard: loadDashboard,
+            dashboardData,
+            statusMessage,
+        }),
+        [isAuthenticated, user, dashboardData, statusMessage],
+    );
+
     const renderPage = () => {
         switch (currentPath) {
             case '/order':
                 return (
                     <OrderPage
+                        system={systemProps}
+                        session={sessionProps}
                         navigate={navigate}
                         loginForm={loginForm}
                         onLoginChange={handleLoginChange}
@@ -167,6 +196,8 @@ export default function App() {
             case '/admin':
                 return (
                     <AdminPage
+                        system={systemProps}
+                        session={sessionProps}
                         loginForm={loginForm}
                         onLoginChange={handleLoginChange}
                         onLoginSubmit={handleLoginSubmit}
@@ -177,69 +208,11 @@ export default function App() {
                     />
                 );
             case '/':
-                return <HomePage navigate={navigate} />;
+                return <HomePage system={systemProps} session={sessionProps} navigate={navigate} />;
             default:
-                return <NotFoundPage navigate={navigate} />;
+                return <NotFoundPage system={systemProps} session={sessionProps} navigate={navigate} />;
         }
     };
 
-    return (
-        <div style={{ fontFamily: 'system-ui', minHeight: '100vh', background: '#fafafa', color: '#222' }}>
-            <header
-                style={{
-                    padding: '20px 16px',
-                    borderBottom: '1px solid #e5e5e5',
-                    background: '#fff',
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 10,
-                }}
-            >
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'baseline', justifyContent: 'space-between' }}>
-                    <div>
-                        <h1 style={{ margin: 0 }}>Restaurant Management</h1>
-                        <p style={{ margin: 0, color: '#555' }}>Backend health: {health ? health.status : '…'}</p>
-                    </div>
-                    <nav style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                        <NavigationLink to="/" navigate={navigate} currentPath={currentPath}>
-                            Home
-                        </NavigationLink>
-                        <NavigationLink to="/order" navigate={navigate} currentPath={currentPath}>
-                            Order
-                        </NavigationLink>
-                        <NavigationLink to="/admin" navigate={navigate} currentPath={currentPath}>
-                            Admin
-                        </NavigationLink>
-                    </nav>
-                </div>
-                {statusMessage && (
-                    <div
-                        style={{
-                            marginTop: 12,
-                            padding: '8px 12px',
-                            borderRadius: 8,
-                            background: '#f0f7ff',
-                            border: '1px solid #c3ddff',
-                            color: '#06418d',
-                            fontSize: 14,
-                        }}
-                    >
-                        {statusMessage}
-                    </div>
-                )}
-            </header>
-
-            <main style={{ padding: '24px 16px', maxWidth: 960, margin: '0 auto' }}>{renderPage()}</main>
-
-            <footer style={{ padding: '24px 16px', borderTop: '1px solid #e5e5e5', background: '#fff' }}>
-                <SessionPanel
-                    isAuthenticated={isAuthenticated}
-                    user={user}
-                    onLoadDashboard={loadDashboard}
-                    dashboardData={dashboardData}
-                    statusMessage={statusMessage}
-                />
-            </footer>
-        </div>
-    );
+    return renderPage();
 }
