@@ -28,6 +28,7 @@ def create_app():
 
     # Auth routes
     app.register_blueprint(auth_bp)
+    app.register_blueprint(items_bp)
 
     # Example protected route (role-agnostic)
     from flask_jwt_extended import jwt_required
