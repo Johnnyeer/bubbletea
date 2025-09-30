@@ -1,60 +1,62 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import AdminPage from './components/AdminPage.jsx';
-import HomePage from './components/HomePage.jsx';
-import NotFoundPage from './components/NotFoundPage.jsx';
-import OrderPage from './components/OrderPage.jsx';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import AdminPage from "./components/AdminPage.jsx";
+import HomePage from "./components/HomePage.jsx";
+import NotFoundPage from "./components/NotFoundPage.jsx";
+import OrderPage from "./components/OrderPage.jsx";
+import RegisterPage from "./components/RegisterPage.jsx";
 
 const NAVIGATION_LINKS = [
-    { to: '/', label: 'Home' },
-    { to: '/order', label: 'Order' },
-    { to: '/admin', label: 'Admin' },
+    { to: "/", label: "Home" },
+    { to: "/order", label: "Order" },
+    { to: "/register", label: "Register" },
+    { to: "/admin", label: "Admin" },
 ];
 
 const initialLoginState = {
-    email: '',
-    password: '',
+    email: "",
+    password: "",
 };
 
 export default function App() {
     const getInitialPath = () => {
-        if (typeof window === 'undefined' || !window.location?.pathname) {
-            return '/';
+        if (typeof window === "undefined" || !window.location?.pathname) {
+            return "/";
         }
-        return window.location.pathname || '/';
+        return window.location.pathname || "/";
     };
 
     const [health, setHealth] = useState(null);
     const [loginForm, setLoginForm] = useState(initialLoginState);
-    const [token, setToken] = useState(() => localStorage.getItem('jwt') || '');
+    const [token, setToken] = useState(() => localStorage.getItem("jwt") || "");
     const [user, setUser] = useState(null);
-    const [statusMessage, setStatusMessage] = useState('');
+    const [statusMessage, setStatusMessage] = useState("");
     const [dashboardData, setDashboardData] = useState(null);
     const [currentPath, setCurrentPath] = useState(getInitialPath);
 
     useEffect(() => {
-        fetch('/api/health').then(r => r.json()).then(setHealth).catch(console.error);
+        fetch("/api/health").then(r => r.json()).then(setHealth).catch(console.error);
     }, []);
 
     useEffect(() => {
-        if (typeof window === 'undefined') {
+        if (typeof window === "undefined") {
             return undefined;
         }
         const handlePopState = () => {
             setCurrentPath(getInitialPath());
         };
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
     }, []);
 
     const navigate = useCallback(
         path => {
-            if (typeof window === 'undefined') {
+            if (typeof window === "undefined") {
                 return;
             }
             if (path === currentPath) {
                 return;
             }
-            window.history.pushState({}, '', path);
+            window.history.pushState({}, "", path);
             setCurrentPath(path);
             window.scrollTo(0, 0);
         },
@@ -63,30 +65,30 @@ export default function App() {
 
     useEffect(() => {
         if (token) {
-            localStorage.setItem('jwt', token);
-            fetch('/api/me', {
+            localStorage.setItem("jwt", token);
+            fetch("/api/me", {
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    Authorization: "Bearer " + token,
                 },
             })
                 .then(async response => {
                     if (!response.ok) {
                         const err = await response.json().catch(() => ({}));
-                        throw new Error(err.error || 'Unable to load profile');
+                        throw new Error(err.error || "Unable to load profile");
                     }
                     return response.json();
                 })
                 .then(data => {
                     setUser(data);
-                    setStatusMessage('');
+                    setStatusMessage("");
                 })
                 .catch(error => {
                     console.error(error);
                     setStatusMessage(error.message);
-                    setToken('');
+                    setToken("");
                 });
         } else {
-            localStorage.removeItem('jwt');
+            localStorage.removeItem("jwt");
             setUser(null);
         }
     }, [token]);
@@ -100,55 +102,55 @@ export default function App() {
 
     const handleLoginSubmit = event => {
         event.preventDefault();
-        setStatusMessage('Signing in…');
+        setStatusMessage("Signing in...");
         setDashboardData(null);
-        fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(loginForm),
         })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    throw new Error(data.error || 'Login failed');
+                    throw new Error(data.error || "Login failed");
                 }
-                setToken(data.access_token || '');
-                setStatusMessage('Login successful.');
+                setToken(data.access_token || "");
+                setStatusMessage("Login successful.");
                 setLoginForm(initialLoginState);
             })
             .catch(error => setStatusMessage(error.message));
     };
 
     const handleLogout = () => {
-        setToken('');
+        setToken("");
         setDashboardData(null);
-        setStatusMessage('Signed out.');
+        setStatusMessage("Signed out.");
     };
 
     const handleGuestCheckout = () => {
-        setToken('');
+        setToken("");
         setDashboardData(null);
-        setStatusMessage('Guest mode enabled. Browse the menu and build your order.');
-        if (typeof window !== 'undefined') {
+        setStatusMessage("Guest mode enabled. Browse the menu and build your order.");
+        if (typeof window !== "undefined") {
             window.scrollTo(0, 0);
         }
     };
 
     const loadDashboard = endpoint => {
         if (!token) return;
-        setStatusMessage('Loading dashboard…');
+        setStatusMessage("Loading dashboard...");
         fetch(`/api/dashboard/${endpoint}`, {
             headers: {
-                Authorization: `Bearer ${token}`,
+                Authorization: "Bearer " + token,
             },
         })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    throw new Error(data.error || 'Unable to load dashboard');
+                    throw new Error(data.error || "Unable to load dashboard");
                 }
                 setDashboardData(data);
-                setStatusMessage('');
+                setStatusMessage("");
             })
             .catch(error => {
                 setStatusMessage(error.message);
@@ -158,7 +160,7 @@ export default function App() {
 
     const systemProps = useMemo(
         () => ({
-            title: 'Restaurant Management',
+            title: "Restaurant Management",
             health,
             statusMessage,
             currentPath,
@@ -181,11 +183,9 @@ export default function App() {
 
     const renderPage = () => {
         switch (currentPath) {
-            case '/order':
+            case "/order":
                 return (
                     <OrderPage
-                        system={systemProps}
-                        session={sessionProps}
                         navigate={navigate}
                         loginForm={loginForm}
                         onLoginChange={handleLoginChange}
@@ -193,7 +193,9 @@ export default function App() {
                         onGuestCheckout={handleGuestCheckout}
                     />
                 );
-            case '/admin':
+            case "/register":
+                return <RegisterPage navigate={navigate} />;
+            case "/admin":
                 return (
                     <AdminPage
                         system={systemProps}
@@ -207,7 +209,7 @@ export default function App() {
                         navigate={navigate}
                     />
                 );
-            case '/':
+            case "/":
                 return <HomePage system={systemProps} session={sessionProps} navigate={navigate} />;
             default:
                 return <NotFoundPage system={systemProps} session={sessionProps} navigate={navigate} />;

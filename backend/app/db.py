@@ -13,14 +13,15 @@ engine = create_engine(
     future=True,
 )
 
-# SQLite pragmas for safety + concurrency (WAL)
+# SQLite pragmas to ensure integrity without WAL persistence issues
 if DATABASE_URL.startswith("sqlite"):
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON;")
-        cursor.execute("PRAGMA journal_mode=WAL;")
+        cursor.execute("PRAGMA journal_mode=DELETE;")
         cursor.execute("PRAGMA synchronous=NORMAL;")
         cursor.close()
 
 SessionLocal = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True))
+

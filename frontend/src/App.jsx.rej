@@ -1,0 +1,399 @@
+--- frontend/src/App.jsx
++++ frontend/src/App.jsx
+@@ -1,290 +1,217 @@
+-import { useEffect, useMemo, useState } from 'react';
++import { useCallback, useEffect, useMemo, useState } from 'react';
++import AdminPage from './pages/AdminPage.jsx';
++import HomePage from './pages/HomePage.jsx';
++import NotFoundPage from './pages/NotFoundPage.jsx';
++import OrderPage from './pages/OrderPage.jsx';
++import NavigationLink from './components/NavigationLink.jsx';
++import SessionPanel from './components/SessionPanel.jsx';
+ 
+-const initialRegisterState = {
+-    full_name: '',
++const initialLoginState = {
+     email: '',
+     password: '',
+ };
+ 
+-const initialLoginState = {
+-    email: '',
+-    password: '',
++const getInitialPath = () => {
++    if (typeof window === 'undefined' || !window.location?.pathname) {
++        return '/';
++    }
++    return window.location.pathname || '/';
+ };
+ 
+ export default function App() {
+     const [health, setHealth] = useState(null);
+-    const [registerForm, setRegisterForm] = useState(initialRegisterState);
+     const [loginForm, setLoginForm] = useState(initialLoginState);
+     const [token, setToken] = useState(() => localStorage.getItem('jwt') || '');
+     const [user, setUser] = useState(null);
+     const [statusMessage, setStatusMessage] = useState('');
+     const [dashboardData, setDashboardData] = useState(null);
+-    const [activeView, setActiveView] = useState('login');
++    const [currentPath, setCurrentPath] = useState(getInitialPath);
+ 
+     useEffect(() => {
+         fetch('/api/health').then(r => r.json()).then(setHealth).catch(console.error);
+     }, []);
+ 
++    useEffect(() => {
++        if (typeof window === 'undefined') {
++            return undefined;
++        }
++        const handlePopState = () => {
++            setCurrentPath(getInitialPath());
++        };
++        window.addEventListener('popstate', handlePopState);
++        return () => window.removeEventListener('popstate', handlePopState);
++    }, []);
++
++    const navigate = useCallback(
++        path => {
++            if (typeof window === 'undefined') {
++                return;
++            }
++            if (path === currentPath) {
++                return;
++            }
++            window.history.pushState({}, '', path);
++            setCurrentPath(path);
++            window.scrollTo(0, 0);
++        },
++        [currentPath],
++    );
++
+     useEffect(() => {
+         if (token) {
+             localStorage.setItem('jwt', token);
+             fetch('/api/me', {
+                 headers: {
+                     Authorization: `Bearer ${token}`,
+                 },
+             })
+                 .then(async response => {
+                     if (!response.ok) {
+                         const err = await response.json().catch(() => ({}));
+                         throw new Error(err.error || 'Unable to load profile');
+                     }
+                     return response.json();
+                 })
+                 .then(data => {
+                     setUser(data);
+                     setStatusMessage('');
+                 })
+                 .catch(error => {
+                     console.error(error);
+                     setStatusMessage(error.message);
+                     setToken('');
+                 });
+         } else {
+             localStorage.removeItem('jwt');
+             setUser(null);
+         }
+     }, [token]);
+ 
+     const isAuthenticated = useMemo(() => Boolean(token && user), [token, user]);
+-    const showLoginView = activeView === 'login';
+-    const showRegisterView = activeView === 'register';
+-
+-    const handleRegisterChange = event => {
+-        const { name, value } = event.target;
+-        setRegisterForm(prev => ({ ...prev, [name]: value }));
+-    };
+ 
+     const handleLoginChange = event => {
+         const { name, value } = event.target;
+         setLoginForm(prev => ({ ...prev, [name]: value }));
+     };
+ 
+-    const handleRegisterSubmit = event => {
+-        event.preventDefault();
+-        setStatusMessage('Creating customer account…');
+-        setDashboardData(null);
+-        fetch('/api/auth/register', {
+-            method: 'POST',
+-            headers: { 'Content-Type': 'application/json' },
+-            body: JSON.stringify({ ...registerForm, role: 'customer' }),
+-        })
+-            .then(async response => {
+-                const data = await response.json().catch(() => ({}));
+-                if (!response.ok) {
+-                    throw new Error(data.error || 'Registration failed');
+-                }
+-                setStatusMessage('Registration successful. You can now sign in.');
+-                setRegisterForm(initialRegisterState);
+-                setActiveView('login');
+-            })
+-            .catch(error => setStatusMessage(error.message));
+-    };
+-
+     const handleLoginSubmit = event => {
+         event.preventDefault();
+         setStatusMessage('Signing in…');
+         setDashboardData(null);
+         fetch('/api/auth/login', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(loginForm),
+         })
+             .then(async response => {
+                 const data = await response.json().catch(() => ({}));
+                 if (!response.ok) {
+                     throw new Error(data.error || 'Login failed');
+                 }
+                 setToken(data.access_token || '');
+                 setStatusMessage('Login successful.');
+                 setLoginForm(initialLoginState);
+             })
+             .catch(error => setStatusMessage(error.message));
+     };
+ 
+     const handleLogout = () => {
+         setToken('');
+         setDashboardData(null);
+         setStatusMessage('Signed out.');
+     };
+ 
++    const handleGuestCheckout = () => {
++        setToken('');
++        setDashboardData(null);
++        setStatusMessage('Guest mode enabled. Browse the menu and build your order.');
++        if (typeof window !== 'undefined') {
++            window.scrollTo(0, 0);
++        }
++    };
++
+     const loadDashboard = endpoint => {
+         if (!token) return;
+         setStatusMessage('Loading dashboard…');
+         fetch(`/api/dashboard/${endpoint}`, {
+             headers: {
+                 Authorization: `Bearer ${token}`,
+             },
+         })
+             .then(async response => {
+                 const data = await response.json().catch(() => ({}));
+                 if (!response.ok) {
+                     throw new Error(data.error || 'Unable to load dashboard');
+                 }
+                 setDashboardData(data);
+                 setStatusMessage('');
+             })
+             .catch(error => {
+                 setStatusMessage(error.message);
+                 setDashboardData(null);
+             });
+     };
+ 
+-    const openLoginView = () => {
+-        setActiveView('login');
+-        setStatusMessage('');
+-    };
+-
+-    const openRegisterView = () => {
+-        setActiveView('register');
+-        setStatusMessage('');
+-        setRegisterForm(initialRegisterState);
++    const renderPage = () => {
++        switch (currentPath) {
++            case '/order':
++                return (
++                    <OrderPage
++                        navigate={navigate}
++                        loginForm={loginForm}
++                        onLoginChange={handleLoginChange}
++                        onLoginSubmit={handleLoginSubmit}
++                        onGuestCheckout={handleGuestCheckout}
++                    />
++                );
++            case '/admin':
++                return (
++                    <AdminPage
++                        loginForm={loginForm}
++                        onLoginChange={handleLoginChange}
++                        onLoginSubmit={handleLoginSubmit}
++                        onLogout={handleLogout}
++                        isAuthenticated={isAuthenticated}
++                        user={user}
++                        navigate={navigate}
++                    />
++                );
++            case '/':
++                return <HomePage navigate={navigate} />;
++            default:
++                return <NotFoundPage navigate={navigate} />;
++        }
+     };
+ 
+     return (
+-        <div style={{ fontFamily: 'system-ui', padding: 16, lineHeight: 1.5 }}>
+-            <h1>Restaurant Management</h1>
+-            <p>Backend health: {health ? health.status : '…'}</p>
+-
+-            {showLoginView && (
+-                <section style={{ maxWidth: 420, border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
+-                    <h2>Staff &amp; Manager Sign In</h2>
+-                    <p style={{ marginTop: 0, color: '#555' }}>
+-                        Sign in to manage orders, inventory, and team performance.
+-                    </p>
+-                    <form onSubmit={handleLoginSubmit} style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+-                        <label>
+-                            Email
+-                            <input
+-                                type="email"
+-                                name="email"
+-                                value={loginForm.email}
+-                                onChange={handleLoginChange}
+-                                required
+-                                style={{ width: '100%', padding: 8 }}
+-                            />
+-                        </label>
+-                        <label>
+-                            Password
+-                            <input
+-                                type="password"
+-                                name="password"
+-                                value={loginForm.password}
+-                                onChange={handleLoginChange}
+-                                required
+-                                style={{ width: '100%', padding: 8 }}
+-                            />
+-                        </label>
+-                        <button type="submit" style={{ padding: '8px 12px' }}>Sign in</button>
+-                    </form>
+-                    {isAuthenticated && (
+-                        <button onClick={handleLogout} style={{ marginTop: 12, padding: '6px 10px' }}>
+-                            Sign out
+-                        </button>
+-                    )}
+-                    <div style={{ marginTop: 16, fontSize: 14 }}>
+-                        <span>Need a customer account?</span>{' '}
+-                        <button type="button" onClick={openRegisterView} style={{ padding: '4px 8px' }}>
+-                            Create customer profile
+-                        </button>
+-                    </div>
+-                </section>
+-            )}
+-
+-            {showRegisterView && (
+-                <section style={{ maxWidth: 480, border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
+-                    <h2>Customer Registration</h2>
+-                    <p style={{ marginTop: 0, color: '#555' }}>
+-                        Create a customer profile to place orders and view your history. Staff and managers should use the
+-                        sign-in page.
+-                    </p>
+-                    <form onSubmit={handleRegisterSubmit} style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+-                        <label>
+-                            Full name
+-                            <input
+-                                name="full_name"
+-                                value={registerForm.full_name}
+-                                onChange={handleRegisterChange}
+-                                required
+-                                style={{ width: '100%', padding: 8 }}
+-                            />
+-                        </label>
+-                        <label>
+-                            Email
+-                            <input
+-                                type="email"
+-                                name="email"
+-                                value={registerForm.email}
+-                                onChange={handleRegisterChange}
+-                                required
+-                                style={{ width: '100%', padding: 8 }}
+-                            />
+-                        </label>
+-                        <label>
+-                            Password
+-                            <input
+-                                type="password"
+-                                name="password"
+-                                value={registerForm.password}
+-                                onChange={handleRegisterChange}
+-                                required
+-                                style={{ width: '100%', padding: 8 }}
+-                            />
+-                        </label>
+-                        <button type="submit" style={{ padding: '8px 12px' }}>Create customer account</button>
+-                    </form>
+-                    <div style={{ marginTop: 16, fontSize: 14 }}>
+-                        <span>Already managing the restaurant?</span>{' '}
+-                        <button type="button" onClick={openLoginView} style={{ padding: '4px 8px' }}>
+-                            Go to staff &amp; manager sign in
+-                        </button>
+-                    </div>
+-                </section>
+-            )}
+-
+-            <section style={{ marginTop: 24 }}>
+-                <h2>Current session</h2>
+-                <p>Status message: {statusMessage || 'None'}</p>
+-                {isAuthenticated ? (
+-                    <div style={{ border: '1px solid #eee', borderRadius: 8, padding: 16, marginTop: 12 }}>
+-                        <p><strong>Name:</strong> {user.full_name}</p>
+-                        <p><strong>Email:</strong> {user.email}</p>
+-                        <p><strong>Role:</strong> {user.role}</p>
+-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+-                            <button onClick={() => loadDashboard('customer')}>Customer dashboard</button>
+-                            {(user.role === 'staff' || user.role === 'manager') && (
+-                                <button onClick={() => loadDashboard('staff')}>Staff dashboard</button>
+-                            )}
+-                            {user.role === 'manager' && (
+-                                <button onClick={() => loadDashboard('manager')}>Manager dashboard</button>
+-                            )}
+-                        </div>
+-                    </div>
+-                ) : (
+-                    <p>Sign in to access dashboards.</p>
+-                )}
+-
+-                {dashboardData && (
+-                    <div style={{ border: '1px solid #cce5ff', background: '#f5fbff', padding: 16, borderRadius: 8, marginTop: 16 }}>
+-                        <h3>{dashboardData.message}</h3>
+-                        <ul>
+-                            {dashboardData.available_actions?.map(action => (
+-                                <li key={action}>{action}</li>
+-                            ))}
+-                        </ul>
+-                    </div>
+-                )}
+-            </section>
++        <div style={{ fontFamily: 'sans-serif', padding: '1rem' }}>
++            <header style={{ marginBottom: '1.5rem' }}>
++                <h1 style={{ marginBottom: '0.5rem' }}>Restaurant Management</h1>
++                <p style={{ marginBottom: '0.75rem' }}>Backend health: {health ? health.status : '…'}</p>
++                <nav style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
++                    <NavigationLink to="/" navigate={navigate} currentPath={currentPath}>
++                        Home
++                    </NavigationLink>
++                    <NavigationLink to="/order" navigate={navigate} currentPath={currentPath}>
++                        Order
++                    </NavigationLink>
++                    <NavigationLink to="/admin" navigate={navigate} currentPath={currentPath}>
++                        Admin
++                    </NavigationLink>
++                </nav>
++                {statusMessage && <p style={{ marginTop: '0.75rem' }}>{statusMessage}</p>}
++            </header>
++
++            <main style={{ marginBottom: '2rem' }}>{renderPage()}</main>
++
++            <footer>
++                <SessionPanel
++                    isAuthenticated={isAuthenticated}
++                    user={user}
++                    onLoadDashboard={loadDashboard}
++                    dashboardData={dashboardData}
++                />
++            </footer>
+         </div>
+     );
+ }
+-
