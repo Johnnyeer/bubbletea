@@ -2,7 +2,7 @@ import { pillButtonStyle } from './styles.js';
 
 export default function SessionPanel({ isAuthenticated, user, onLoadDashboard, dashboardData, statusMessage }) {
     return (
-        <section style={{ maxWidth: 960, margin: '0 auto', display: 'grid', gap: 16 }}>
+        <section style={{ display: 'grid', gap: 16 }}>
             <div>
                 <h2 style={{ margin: 0 }}>Session overview</h2>
                 <p style={{ marginTop: 4, color: '#4a5568' }}>Status message: {statusMessage || 'None'}</p>
