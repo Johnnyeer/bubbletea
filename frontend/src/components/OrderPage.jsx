@@ -1,6 +1,6 @@
-import { cardStyle, inputStyle, labelStyle, primaryButtonStyle, secondaryButtonStyle } from './styles.js';
+import { cardStyle, inputStyle, labelStyle, primaryButtonStyle} from './styles.js';
 
-export default function OrderPage({ navigate, loginForm, onLoginChange, onLoginSubmit, onGuestCheckout }) {
+export default function OrderPage({loginForm, onLoginChange, onLoginSubmit, onGuestCheckout }) {
     return (
         <section
             style={{
@@ -14,22 +14,8 @@ export default function OrderPage({ navigate, loginForm, onLoginChange, onLoginS
             <div style={{ display: 'grid', gap: 8 }}>
                 <h2 style={{ margin: 0, fontSize: 32, textAlign: 'center' }}>Restaurant</h2>
                 <p style={{ margin: 0, color: '#4a5568', textAlign: 'center' }}>
-                    Welcome back! Sign in to access your saved orders or jump right into guest checkout.
+                    Welcome! Sign in to access your saved orders or jump right into guest checkout.
                 </p>
-                <div style={{ textAlign: 'center' }}>
-                    <button
-                        type="button"
-                        onClick={() => navigate('/admin')}
-                        style={{
-                            ...secondaryButtonStyle,
-                            marginTop: 8,
-                            padding: '8px 18px',
-                            fontWeight: 600,
-                        }}
-                    >
-                        Staff &amp; manager portal
-                    </button>
-                </div>
             </div>
 
             <div style={{ ...cardStyle, display: 'grid', gap: 16 }}>
