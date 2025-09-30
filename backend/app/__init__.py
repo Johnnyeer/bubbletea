@@ -6,6 +6,7 @@ import os
 from .db import engine
 from .models import Base
 from .auth import bp as auth_bp
+from .items import bp as items_bp
 
 def create_app():
     app = Flask(__name__)
