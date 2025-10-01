@@ -1,87 +1,379 @@
-import { cardStyle, inputStyle, labelStyle, primaryButtonStyle, secondaryButtonStyle } from './styles.js';
-import SessionPanel from './SessionPanel.jsx';
-import SystemLayout from './SystemLayout.jsx';
+import { useEffect, useState } from "react";
+import SystemLayout from "./SystemLayout.jsx";
+import { primaryButtonStyle, secondaryButtonStyle, labelStyle, inputStyle, cardStyle } from "./styles.js";
+
+const EMPTY_ACCOUNT = { full_name: "", username: "", password: "", role: "staff" };
+const DEFAULT_ADJUSTMENT = "1";
+const tableWrapperStyle = { overflowX: "auto" };
+const tableStyle = { width: "100%", borderCollapse: "collapse", marginTop: 12 };
+const headerCellStyle = { textAlign: "left", padding: "8px 4px", borderBottom: "1px solid #d0d0d0" };
+const cellStyle = { padding: "8px 4px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" };
+const errorTextStyle = { color: "#b91c1c", fontWeight: "bold", marginTop: 8 };
+const helperTextStyle = { fontSize: "0.9rem", color: "#475569" };
+
+const formatCurrency = value => {
+    const amount = Number(value || 0);
+    if (Number.isNaN(amount)) {
+        return "$0.00";
+    }
+    return `$${amount.toFixed(2)}`;
+};
 
 export default function AdminPage({
-                                      system,
-                                      session,
-                                      loginForm,
-                                      onLoginChange,
-                                      onLoginSubmit,
-                                      onLogout,
-                                      isAuthenticated,
-                                      user,
-                                      navigate,
-                                  }) {
-    const sessionFooter = session ? <SessionPanel {...session} /> : null;
+    system,
+    session,
+    loginForm,
+    onLoginChange,
+    onLoginSubmit,
+    onLogout,
+    isAuthenticated,
+    user,
+    navigate,
+    onCreateTeamAccount,
+}) {
+    const [newAccount, setNewAccount] = useState(EMPTY_ACCOUNT);
+    const [isSavingAccount, setIsSavingAccount] = useState(false);
+    const [accountMessage, setAccountMessage] = useState("");
+    const [inventoryItems, setInventoryItems] = useState([]);
+    const [isLoadingInventory, setIsLoadingInventory] = useState(false);
+    const [inventoryError, setInventoryError] = useState("");
+    const [quantityInputs, setQuantityInputs] = useState({});
+    const [pendingItemId, setPendingItemId] = useState(null);
+
+    const isManager = Boolean(isAuthenticated && user?.role === "manager");
+    const canViewInventory = Boolean(isAuthenticated && (user?.role === "staff" || user?.role === "manager"));
+    const canManageInventory = Boolean(isManager);
+    const authToken = session?.token || "";
+
+    const updateStatusMessage = typeof system?.onStatusMessage === "function" ? system.onStatusMessage : null;
+
+    const getAdjustmentValue = itemId => {
+        const raw = quantityInputs[itemId];
+        return raw === undefined ? DEFAULT_ADJUSTMENT : raw;
+    };
+
+    const handleFieldChange = event => {
+        const { name, value } = event.target;
+        setNewAccount(previous => ({ ...previous, [name]: value }));
+    };
+
+    const handleCreateAccount = async event => {
+        event.preventDefault();
+        if (!onCreateTeamAccount) {
+            return;
+        }
+        setIsSavingAccount(true);
+        setAccountMessage("");
+        try {
+            const payload = {
+                full_name: newAccount.full_name.trim(),
+                username: newAccount.username.trim(),
+                password: newAccount.password,
+                role: newAccount.role,
+            };
+            const result = await onCreateTeamAccount(payload);
+            setAccountMessage(`Created account for ${result.full_name}.`);
+            setNewAccount(EMPTY_ACCOUNT);
+        } catch (error) {
+            setAccountMessage(error.message || "Unable to create account");
+        } finally {
+            setIsSavingAccount(false);
+        }
+    };
+
+    const goToPath = path => event => {
+        event.preventDefault();
+        if (typeof navigate === "function") {
+            navigate(path);
+        }
+    };
+
+    const loadInventory = () => {
+        if (!canViewInventory) {
+            return;
+        }
+        setIsLoadingInventory(true);
+        setInventoryError("");
+        const headers = authToken ? { Authorization: "Bearer " + authToken } : {};
+        fetch("/api/items", { headers })
+            .then(async response => {
+                const data = await response.json().catch(() => []);
+                if (!response.ok) {
+                    throw new Error(data.error || "Unable to load inventory");
+                }
+                return Array.isArray(data) ? data : [];
+            })
+            .then(items => {
+                setInventoryItems(items);
+                setQuantityInputs({});
+                if (items.length === 0 && updateStatusMessage) {
+                    updateStatusMessage("No menu items found in inventory.");
+                }
+            })
+            .catch(error => {
+                const message = error.message || "Unable to load inventory";
+                setInventoryError(message);
+                if (updateStatusMessage) {
+                    updateStatusMessage(message);
+                }
+            })
+            .finally(() => setIsLoadingInventory(false));
+    };
+
+    useEffect(() => {
+        if (!canViewInventory) {
+            setInventoryItems([]);
+            setQuantityInputs({});
+            setInventoryError("");
+            return;
+        }
+        loadInventory();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [canViewInventory, authToken]);
+
+    const handleRefreshInventory = () => {
+        loadInventory();
+    };
+
+    const handleQuantityInputChange = (itemId, value) => {
+        setQuantityInputs(previous => ({ ...previous, [itemId]: value }));
+    };
+
+    const handleAdjustQuantity = async (itemId, mode) => {
+        if (!canManageInventory) {
+            return;
+        }
+        const rawValue = String(getAdjustmentValue(itemId)).trim();
+        const amount = Number.parseInt(rawValue, 10);
+        if (!Number.isFinite(amount) || Number.isNaN(amount) || amount <= 0) {
+            const message = "Enter a positive whole number before adjusting inventory.";
+            setInventoryError(message);
+            return;
+        }
+        const delta = mode === "add" ? amount : -amount;
+        setPendingItemId(itemId);
+        setInventoryError("");
+        try {
+            const headers = { "Content-Type": "application/json" };
+            if (authToken) {
+                headers.Authorization = "Bearer " + authToken;
+            }
+            const response = await fetch(`/api/items/${itemId}/quantity`, {
+                method: "PATCH",
+                headers,
+                body: JSON.stringify({ delta }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || "Unable to update quantity");
+            }
+            setInventoryItems(previous =>
+                previous.map(item => (item.id === data.id ? { ...item, quantity: data.quantity } : item)),
+            );
+            setQuantityInputs(previous => ({ ...previous, [itemId]: DEFAULT_ADJUSTMENT }));
+            if (updateStatusMessage) {
+                updateStatusMessage(`Quantity for ${data.name} updated to ${data.quantity}.`);
+            }
+        } catch (error) {
+            const message = error.message || "Unable to update quantity";
+            setInventoryError(message);
+            if (updateStatusMessage) {
+                updateStatusMessage(message);
+            }
+        } finally {
+            setPendingItemId(null);
+        }
+    };
 
     return (
-        <SystemLayout system={system} footer={sessionFooter}>
-            <section style={{ display: 'grid', gap: 24 }}>
-                <div style={cardStyle}>
-                    <h2 style={{ marginTop: 0 }}>Staff &amp; manager sign in</h2>
-                    <p style={{ marginTop: 8, color: '#4a5568' }}>
-                        Monitor store performance, manage teams, and keep drinks flowing smoothly.
-                    </p>
-                    <form onSubmit={onLoginSubmit} style={{ display: 'grid', gap: 12, marginTop: 16 }}>
-                        <label style={labelStyle}>
-                            Email
-                            <input
-                                type="email"
-                                name="email"
-                                value={loginForm.email}
-                                onChange={onLoginChange}
-                                required
-                                style={inputStyle}
-                            />
-                        </label>
-                        <label style={labelStyle}>
-                            Password
-                            <input
-                                type="password"
-                                name="password"
-                                value={loginForm.password}
-                                onChange={onLoginChange}
-                                required
-                                style={inputStyle}
-                            />
-                        </label>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                            <button type="submit" style={primaryButtonStyle}>
-                                Sign in
+        <SystemLayout system={system}>
+            <section style={cardStyle}>
+                <h2 style={{ marginTop: 0 }}>Staff Sign In</h2>
+                <form onSubmit={onLoginSubmit} style={{ maxWidth: 360 }}>
+                    <label style={labelStyle}>
+                        Username:
+                        <input
+                            type="text"
+                            name="email"
+                            value={loginForm.email}
+                            onChange={onLoginChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <label style={labelStyle}>
+                        Password:
+                        <input
+                            type="password"
+                            name="password"
+                            value={loginForm.password}
+                            onChange={onLoginChange}
+                            required
+                            style={inputStyle}
+                        />
+                    </label>
+                    <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
+                        <button type="submit" style={primaryButtonStyle}>
+                            Sign In
+                        </button>
+                        {isAuthenticated ? (
+                            <button type="button" onClick={onLogout} style={secondaryButtonStyle}>
+                                Sign Out
                             </button>
-                            {isAuthenticated && (
-                                <button type="button" onClick={onLogout} style={secondaryButtonStyle}>
-                                    Sign out
-                                </button>
-                            )}
+                        ) : (
+                            <button type="button" onClick={goToPath("/order")} style={secondaryButtonStyle}>
+                                Customer Page
+                            </button>
+                        )}
+                    </div>
+                </form>
+            </section>
+
+            {isAuthenticated && user && (
+                <section style={{ ...cardStyle, marginTop: 24 }}>
+                    <h3 style={{ marginTop: 0 }}>Signed in as {user.full_name}</h3>
+                    <p>Role: {user.role}</p>
+                </section>
+            )}
+
+            {canViewInventory && (
+                <section style={{ ...cardStyle, marginTop: 24 }}>
+                    <h3 style={{ marginTop: 0 }}>Inventory</h3>
+                    <p style={helperTextStyle}>Track remaining quantities for each menu item.</p>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                        <button
+                            type="button"
+                            onClick={handleRefreshInventory}
+                            disabled={isLoadingInventory}
+                            style={secondaryButtonStyle}
+                        >
+                            {isLoadingInventory ? "Refreshing..." : "Refresh"}
+                        </button>
+                        {!canManageInventory && (
+                            <span style={helperTextStyle}>Managers can adjust inventory levels.</span>
+                        )}
+                    </div>
+                    {inventoryError && <p style={errorTextStyle}>{inventoryError}</p>}
+                    <div style={tableWrapperStyle}>
+                        <table style={tableStyle}>
+                            <thead>
+                                <tr>
+                                    <th style={headerCellStyle}>Item</th>
+                                    <th style={headerCellStyle}>Price</th>
+                                    <th style={headerCellStyle}>Quantity Remaining</th>
+                                    {canManageInventory && <th style={headerCellStyle}>Adjust Quantity</th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {inventoryItems.map(item => (
+                                    <tr key={item.id}>
+                                        <td style={cellStyle}>{item.name}</td>
+                                        <td style={cellStyle}>{formatCurrency(item.price)}</td>
+                                        <td style={cellStyle}>{item.quantity}</td>
+                                        {canManageInventory && (
+                                            <td style={cellStyle}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        step="1"
+                                                        value={getAdjustmentValue(item.id)}
+                                                        onChange={event => handleQuantityInputChange(item.id, event.target.value)}
+                                                        style={{ ...inputStyle, maxWidth: 100 }}
+                                                        disabled={pendingItemId === item.id}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAdjustQuantity(item.id, "add")}
+                                                        style={primaryButtonStyle}
+                                                        disabled={pendingItemId === item.id}
+                                                    >
+                                                        Add
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAdjustQuantity(item.id, "remove")}
+                                                        style={{ ...secondaryButtonStyle, background: "#fee2e2", borderColor: "#ef4444", color: "#991b1b" }}
+                                                        disabled={pendingItemId === item.id}
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                                {inventoryItems.length === 0 && !isLoadingInventory && (
+                                    <tr>
+                                        <td style={cellStyle} colSpan={canManageInventory ? 4 : 3}>
+                                            No menu items found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            )}
+
+            {isManager && (
+                <section style={{ ...cardStyle, marginTop: 24 }}>
+                    <h3 style={{ marginTop: 0 }}>Create a staff account</h3>
+                    <form onSubmit={handleCreateAccount} style={{ maxWidth: 360 }}>
+                        <label style={labelStyle}>
+                            Full name:
+                            <input
+                                type="text"
+                                name="full_name"
+                                value={newAccount.full_name}
+                                onChange={handleFieldChange}
+                                required
+                                style={inputStyle}
+                            />
+                        </label>
+                        <label style={labelStyle}>
+                            Username:
+                            <input
+                                type="text"
+                                name="username"
+                                value={newAccount.username}
+                                onChange={handleFieldChange}
+                                required
+                                style={inputStyle}
+                            />
+                        </label>
+                        <label style={labelStyle}>
+                            Temporary password:
+                            <input
+                                type="text"
+                                name="password"
+                                value={newAccount.password}
+                                onChange={handleFieldChange}
+                                required
+                                style={inputStyle}
+                            />
+                        </label>
+                        <label style={labelStyle}>
+                            Role:
+                            <select
+                                name="role"
+                                value={newAccount.role}
+                                onChange={handleFieldChange}
+                                style={inputStyle}
+                            >
+                                <option value="staff">Staff</option>
+                                <option value="manager">Manager</option>
+                            </select>
+                        </label>
+                        <div style={{ marginTop: 16 }}>
+                            <button type="submit" disabled={isSavingAccount} style={primaryButtonStyle}>
+                                {isSavingAccount ? "Creating..." : "Create account"}
+                            </button>
                         </div>
                     </form>
-                    <p style={{ marginTop: 16, fontSize: 14, color: '#4a5568' }}>
-                        Taking or tracking an order?{' '}
-                        <a href="/order" onClick={event => handleLink(event, navigate, '/order')} style={{ color: '#0b5ed7' }}>
-                            Switch to the customer order page.
-                        </a>
-                    </p>
-                </div>
-
-                {isAuthenticated && user && (
-                    <div style={{ ...cardStyle, background: '#f0f7ff' }}>
-                        <h3 style={{ marginTop: 0 }}>Signed in as {user.full_name}</h3>
-                        <p style={{ marginTop: 8, color: '#1e3a8a' }}>
-                            Role: <strong>{user.role}</strong>
-                        </p>
-                        <p style={{ marginTop: 8, color: '#1e3a8a' }}>
-                            Use the dashboard controls below to access staff or manager tools.
-                        </p>
-                    </div>
-                )}
-            </section>
+                    {accountMessage && <p style={{ marginTop: 12 }}>{accountMessage}</p>}
+                </section>
+            )}
         </SystemLayout>
     );
 }
-
-const handleLink = (event, navigate, path) => {
-    event.preventDefault();
-    navigate(path);
-};

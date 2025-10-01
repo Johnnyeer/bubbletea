@@ -1,35 +1,27 @@
-import NavigationLink from './NavigationLink.jsx';
+import NavigationLink from "./NavigationLink.jsx";
 
 export default function SystemHeader({
-                                         title = 'Restaurant Management',
-                                         health,
-                                         navigation = [],
-                                         navigate,
-                                         currentPath,
-                                         statusMessage,
-                                     }) {
+    title = "Bubble Tea Shop",
+    navigation = [],
+    navigate,
+    currentPath,
+    statusMessage,
+}) {
+    const navItems = navigation.map((link, index) => (
+        <span key={link.to}>
+            <NavigationLink to={link.to} navigate={navigate} currentPath={currentPath}>
+                {link.label}
+            </NavigationLink>
+            {index < navigation.length - 1 ? " | " : ""}
+        </span>
+    ));
+
     return (
-        <header className="system-header">
-            <div className="page-inner system-header__inner">
-                <div className="system-header__branding">
-                    <h1>{title}</h1>
-                    <p>Backend health: {health ? health.status : '…'}</p>
-                </div>
-                {navigation.length > 0 && (
-                    <nav className="system-header__nav">
-                        {navigation.map(link => (
-                            <NavigationLink key={link.to} to={link.to} navigate={navigate} currentPath={currentPath}>
-                                {link.label}
-                            </NavigationLink>
-                        ))}
-                    </nav>
-                )}
-            </div>
-            {statusMessage && (
-                <div className="system-header__status page-inner">
-                    <div>{statusMessage}</div>
-                </div>
-            )}
+        <header>
+            <div style={{ fontWeight: "bold" }}>{title}</div>
+            {navItems.length > 0 && <div style={{ margin: "8px 0" }}>{navItems}</div>}
+            <hr style={{ margin: "8px 0" }} />
+            {statusMessage && <div style={{ marginBottom: 8, fontWeight: "bold" }}>Status: {statusMessage}</div>}
         </header>
     );
 }

@@ -1,30 +1,17 @@
-import SystemHeader from './SystemHeader.jsx';
+import SystemHeader from "./SystemHeader.jsx";
 
-export default function SystemLayout({
-                                         children,
-                                         system,
-                                         footer = null,
-                                         showHeader = true,
-                                         contentMaxWidth = 960,
-                                     }) {
-    const headerProps = system || {};
+export default function SystemLayout({ children, system, footer = null, showHeader = true }) {
     const shouldRenderHeader = showHeader && system;
 
     return (
-        <div className="app-surface">
-            {shouldRenderHeader && <SystemHeader {...headerProps} />}
-            <main className="page-content">
-                <div className="page-inner" style={{ maxWidth: contentMaxWidth }}>
-                    {children}
-                </div>
-            </main>
-            {footer && (
-                <footer className="page-footer">
-                    <div className="page-inner" style={{ maxWidth: contentMaxWidth }}>
-                        {footer}
-                    </div>
-                </footer>
-            )}
+        <div style={{
+            fontFamily: "'Arial', 'Helvetica', sans-serif",
+            padding: "16px",
+            lineHeight: 1.6,
+        }}>
+            {shouldRenderHeader && <SystemHeader {...system} />}
+            <main style={{ marginTop: shouldRenderHeader ? 16 : 0 }}>{children}</main>
+            {footer && <footer style={{ marginTop: 24 }}>{footer}</footer>}
         </div>
     );
 }

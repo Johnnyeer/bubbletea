@@ -11,12 +11,10 @@ export default function NavigationLink({ to, navigate, currentPath, children }) 
             href={to}
             onClick={handleClick}
             style={{
-                padding: '6px 10px',
-                borderRadius: 6,
-                textDecoration: 'none',
-                color: isActive ? '#0b5ed7' : '#1f2933',
-                background: isActive ? 'rgba(11, 94, 215, 0.08)' : 'transparent',
-                fontWeight: isActive ? 600 : 500,
+                textDecoration: "none",
+                color: isActive ? "#1d4ed8" : "#0f172a",
+                fontWeight: isActive ? "bold" : "normal",
+                padding: "4px 6px",
             }}
         >
             {children}

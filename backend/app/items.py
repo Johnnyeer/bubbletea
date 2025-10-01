@@ -1,133 +1,162 @@
-"""CRUD routes for menu items."""
+"""Menu item CRUD endpoints."""
+from decimal import Decimal, InvalidOperation
+
 from flask import Blueprint, jsonify, request
 from sqlalchemy import select
 
 from .auth import _json_error, role_required
 from .db import SessionLocal
-from .models import Item
+from .models import MenuItem
 
 bp = Blueprint("items", __name__, url_prefix="/api/items")
 
+CURRENCY_STEP = Decimal("0.01")
 
-def _serialize(item: Item) -> dict:
+
+def _serialize(item: MenuItem) -> dict:
     return {
         "id": item.id,
         "name": item.name,
-        "price_cents": item.price_cents,
-        "is_active": item.is_active,
+        "price": float(item.price or 0),
+        "quantity": int(item.quantity or 0),
+        "is_active": bool(item.is_active),
     }
+
+
+def _parse_price(raw_value) -> Decimal:
+    try:
+        value = Decimal(str(raw_value))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError("price must be a number")
+    if value < 0:
+        raise ValueError("price must be zero or greater")
+    return value.quantize(CURRENCY_STEP)
+
+
+def _parse_quantity(raw_value) -> int:
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        raise ValueError("quantity must be an integer")
+    if value < 0:
+        raise ValueError("quantity must be zero or greater")
+    return value
 
 
 @bp.get("")
 def list_items():
-    """Return all menu items."""
-    db = SessionLocal()
-    try:
-        items = db.scalars(select(Item).order_by(Item.name)).all()
+    with SessionLocal() as session:
+        items = session.scalars(select(MenuItem).order_by(MenuItem.name)).all()
         return jsonify([_serialize(item) for item in items])
-    finally:
-        db.close()
 
 
 @bp.post("")
 @role_required("manager", "staff")
 def create_item():
-    """Create a new menu item."""
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
-    price_cents = data.get("price_cents")
+    raw_price = data.get("price")
     is_active = bool(data.get("is_active", True))
+    raw_quantity = data.get("quantity", 0)
 
     if not name:
         return _json_error("name is required", 400)
-    try:
-        price_cents = int(price_cents)
-    except (TypeError, ValueError):
-        return _json_error("price_cents must be an integer", 400)
-    if price_cents < 0:
-        return _json_error("price_cents must be >= 0", 400)
 
-    db = SessionLocal()
     try:
-        exists = db.scalar(select(Item).where(Item.name == name))
-        if exists:
+        price = _parse_price(raw_price)
+    except ValueError as exc:
+        return _json_error(str(exc), 400)
+    try:
+        quantity = _parse_quantity(raw_quantity)
+    except ValueError as exc:
+        return _json_error(str(exc), 400)
+
+    with SessionLocal() as session:
+        existing = session.scalar(select(MenuItem).where(MenuItem.name == name))
+        if existing:
             return _json_error("item with that name already exists", 409)
-        item = Item(name=name, price_cents=price_cents, is_active=is_active)
-        db.add(item)
-        db.commit()
-        db.refresh(item)
+        item = MenuItem(name=name, price=price, is_active=is_active, quantity=quantity)
+        session.add(item)
+        session.commit()
+        session.refresh(item)
         return jsonify(_serialize(item)), 201
-    finally:
-        db.close()
 
 
 @bp.get("/<int:item_id>")
 def retrieve_item(item_id: int):
-    """Fetch a single menu item."""
-    db = SessionLocal()
-    try:
-        item = db.get(Item, item_id)
+    with SessionLocal() as session:
+        item = session.get(MenuItem, item_id)
         if not item:
             return _json_error("item not found", 404)
         return jsonify(_serialize(item))
-    finally:
-        db.close()
 
 
 @bp.put("/<int:item_id>")
 @role_required("manager", "staff")
 def update_item(item_id: int):
-    """Replace the item with the supplied payload."""
     data = request.get_json(silent=True) or {}
 
-    db = SessionLocal()
-    try:
-        item = db.get(Item, item_id)
+    with SessionLocal() as session:
+        item = session.get(MenuItem, item_id)
         if not item:
             return _json_error("item not found", 404)
 
-        name = data.get("name")
-        if name is not None:
-            name = name.strip()
+        if "name" in data:
+            name = (data.get("name") or "").strip()
             if not name:
                 return _json_error("name cannot be empty", 400)
-            duplicate = db.scalar(
-                select(Item).where(Item.name == name, Item.id != item_id)
+            duplicate = session.scalar(
+                select(MenuItem).where(MenuItem.name == name, MenuItem.id != item_id)
             )
             if duplicate:
                 return _json_error("item with that name already exists", 409)
             item.name = name
 
-        if "price_cents" in data:
+        if "price" in data:
             try:
-                price_cents = int(data["price_cents"])
-            except (TypeError, ValueError):
-                return _json_error("price_cents must be an integer", 400)
-            if price_cents < 0:
-                return _json_error("price_cents must be >= 0", 400)
-            item.price_cents = price_cents
+                item.price = _parse_price(data.get("price"))
+            except ValueError as exc:
+                return _json_error(str(exc), 400)
 
         if "is_active" in data:
-            item.is_active = bool(data["is_active"])
+            item.is_active = bool(data.get("is_active"))
 
-        db.commit()
-        db.refresh(item)
+        session.commit()
+        session.refresh(item)
         return jsonify(_serialize(item))
-    finally:
-        db.close()
+
+
+@bp.patch("/<int:item_id>/quantity")
+@role_required("manager")
+def adjust_quantity(item_id: int):
+    data = request.get_json(silent=True) or {}
+    if "delta" not in data:
+        return _json_error("delta is required", 400)
+    try:
+        delta = int(data.get("delta"))
+    except (TypeError, ValueError):
+        return _json_error("delta must be an integer", 400)
+
+    with SessionLocal() as session:
+        item = session.get(MenuItem, item_id)
+        if not item:
+            return _json_error("item not found", 404)
+        new_quantity = item.quantity + delta
+        if new_quantity < 0:
+            return _json_error("quantity cannot be negative", 400)
+        item.quantity = new_quantity
+        session.commit()
+        session.refresh(item)
+        return jsonify(_serialize(item))
 
 
 @bp.delete("/<int:item_id>")
 @role_required("manager")
 def delete_item(item_id: int):
-    """Remove an item from the menu."""
-    db = SessionLocal()
-    try:
-        item = db.get(Item, item_id)
+    with SessionLocal() as session:
+        item = session.get(MenuItem, item_id)
         if not item:
             return _json_error("item not found", 404)
-        db.delete(item)
-        db.commit()
+        session.delete(item)
+        session.commit()
         return jsonify({"message": "deleted"})
-    finally:
-        db.close()

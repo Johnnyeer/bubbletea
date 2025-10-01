@@ -1,13 +1,11 @@
-import SessionPanel from './SessionPanel.jsx';
 import SystemLayout from './SystemLayout.jsx';
 import InfoCard from './InfoCard.jsx';
 import { cardStyle, primaryButtonStyle, secondaryButtonStyle } from './styles.js';
 
-export default function HomePage({ system, session, navigate }) {
-    const sessionFooter = session ? <SessionPanel {...session} /> : null;
+export default function HomePage({ system, navigate }) {
 
     return (
-        <SystemLayout system={system} footer={sessionFooter}>
+        <SystemLayout system={system}>
             <section style={{ display: 'grid', gap: 24 }}>
                 <div style={cardStyle}>
                     <h2 style={{ marginTop: 0 }}>Welcome to Bubbletea HQ</h2>

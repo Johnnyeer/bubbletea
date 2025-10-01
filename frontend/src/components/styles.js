@@ -1,53 +1,50 @@
 export const cardStyle = {
-    background: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)',
-    border: '1px solid #e5e7eb',
+    background: "#f5f5f5",
+    borderRadius: 8,
+    padding: 16,
+    border: "1px solid #d0d0d0",
 };
 
 export const inputStyle = {
-    width: '100%',
-    padding: '8px 10px',
-    borderRadius: 8,
-    border: '1px solid #cbd5e1',
-    marginTop: 6,
+    width: "100%",
+    marginTop: 4,
+    padding: "6px 8px",
+    borderRadius: 4,
+    border: "1px solid #999",
 };
 
 export const labelStyle = {
-    display: 'grid',
-    gap: 6,
-    fontSize: 14,
-    color: '#1f2933',
+    display: "block",
+    marginTop: 12,
+    fontWeight: "bold",
 };
 
 export const primaryButtonStyle = {
-    background: '#0b5ed7',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 8,
-    padding: '8px 14px',
-    cursor: 'pointer',
-    fontWeight: 600,
-    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.16)',
+    border: "1px solid #1d4ed8",
+    background: "#1d4ed8",
+    color: "#fff",
+    padding: "6px 16px",
+    borderRadius: 4,
+    cursor: "pointer",
+    fontWeight: "bold",
 };
 
 export const secondaryButtonStyle = {
-    background: '#e0ecff',
-    color: '#1e3a8a',
-    border: 'none',
-    borderRadius: 8,
-    padding: '8px 14px',
-    cursor: 'pointer',
-    fontWeight: 600,
+    border: "1px solid #0f172a",
+    background: "#e2e8f0",
+    color: "#0f172a",
+    padding: "6px 16px",
+    borderRadius: 4,
+    cursor: "pointer",
+    fontWeight: "bold",
 };
 
 export const pillButtonStyle = {
-    background: '#1d4ed8',
-    color: '#fff',
-    border: 'none',
+    border: "1px solid #2563eb",
+    background: "#bfdbfe",
+    color: "#1e3a8a",
+    padding: "6px 16px",
     borderRadius: 999,
-    padding: '6px 14px',
-    cursor: 'pointer',
-    fontWeight: 600,
+    cursor: "pointer",
+    fontWeight: "bold",
 };
