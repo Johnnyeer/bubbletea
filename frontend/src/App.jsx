@@ -4,10 +4,12 @@ import HomePage from "./components/HomePage.jsx";
 import NotFoundPage from "./components/NotFoundPage.jsx";
 import OrderPage from "./components/OrderPage.jsx";
 import RegisterPage from "./components/RegisterPage.jsx";
+import MenuSelectionPage from "./components/MenuSelectionPage.jsx";
 
 const NAVIGATION_LINKS = [
     { to: "/", label: "Home" },
     { to: "/order", label: "Order" },
+    { to: "/menu", label: "Menu" },
     { to: "/register", label: "Register" },
     { to: "/admin", label: "Admin" },
 ];
@@ -100,7 +102,7 @@ export default function App() {
         setLoginForm(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleLoginSubmit = event => {
+    const handleLoginSubmit = (event, nextPath) => {
         event.preventDefault();
         setStatusMessage("Signing in...");
         setDashboardData(null);
@@ -115,11 +117,17 @@ export default function App() {
                     throw new Error(data.error || "Login failed");
                 }
                 setToken(data.access_token || "");
-                setStatusMessage("Login successful.");
+                const successMessage = nextPath ? "Login successful. Let's build your drink." : "Login successful.";
+                setStatusMessage(successMessage);
                 setLoginForm(initialLoginState);
+                if (nextPath) {
+                    navigate(nextPath);
+                }
             })
             .catch(error => setStatusMessage(error.message));
     };
+
+    const handleOrderLoginSubmit = event => handleLoginSubmit(event, "/menu");
 
     const handleLogout = () => {
         setToken("");
@@ -131,9 +139,7 @@ export default function App() {
         setToken("");
         setDashboardData(null);
         setStatusMessage("Guest mode enabled. Browse the menu and build your order.");
-        if (typeof window !== "undefined") {
-            window.scrollTo(0, 0);
-        }
+        navigate("/menu");
     };
 
     const loadDashboard = endpoint => {
@@ -189,8 +195,16 @@ export default function App() {
                         navigate={navigate}
                         loginForm={loginForm}
                         onLoginChange={handleLoginChange}
-                        onLoginSubmit={handleLoginSubmit}
+                        onLoginSubmit={handleOrderLoginSubmit}
                         onGuestCheckout={handleGuestCheckout}
+                    />
+                );
+            case "/menu":
+                return (
+                    <MenuSelectionPage
+                        system={systemProps}
+                        session={sessionProps}
+                        navigate={navigate}
                     />
                 );
             case "/register":

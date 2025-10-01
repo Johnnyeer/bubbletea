@@ -12,9 +12,10 @@ from flask_jwt_extended import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import select
 from .db import SessionLocal
-from .models import User
+from .models import Member, Staff
 
 bp = Blueprint("auth", __name__, url_prefix="/api")
+
 
 def _json_error(msg, code=400):
     return jsonify({"error": msg}), code
@@ -36,13 +37,16 @@ def role_required(*roles):
 
     return decorator
 
+
 @bp.post("/auth/register")
 def register():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
     password = (data.get("password") or "").strip()
     full_name = (data.get("full_name") or "").strip()
-    role = (data.get("role") or "customer").strip().lower()
+    requested_role = (data.get("role") or "customer").strip().lower()
+
+    role = "customer" if requested_role in {"customer", "member"} else requested_role
 
     if not email or not password or not full_name:
         return _json_error("email, password, full_name are required", 400)
@@ -51,21 +55,44 @@ def register():
 
     db = SessionLocal()
     try:
-        exists = db.scalar(select(User).where(User.email == email))
-        if exists:
+        existing_member = db.scalar(select(Member).where(Member.email == email))
+        existing_staff = db.scalar(select(Staff).where(Staff.email == email))
+        if existing_member or existing_staff:
             return _json_error("email already registered", 409)
 
-        user = User(
-            email=email,
-            password_hash=generate_password_hash(password),
-            full_name=full_name,
-            role=role,
-        )
-        db.add(user)
+        if role == "customer":
+            account = Member(
+                email=email,
+                password_hash=generate_password_hash(password),
+                full_name=full_name,
+            )
+            account_type = "member"
+        else:
+            account = Staff(
+                email=email,
+                password_hash=generate_password_hash(password),
+                full_name=full_name,
+                role=role,
+            )
+            account_type = "staff"
+
+        db.add(account)
         db.commit()
-        return jsonify({"message": "registered", "user_id": user.id}), 201
+        db.refresh(account)
+        return (
+            jsonify(
+                {
+                    "message": "registered",
+                    "account_type": account_type,
+                    "id": account.id,
+                    "role": role,
+                }
+            ),
+            201,
+        )
     finally:
         db.close()
+
 
 @bp.post("/auth/login")
 def login():
@@ -78,34 +105,74 @@ def login():
 
     db = SessionLocal()
     try:
-        user = db.scalar(select(User).where(User.email == email))
-        if not user or not check_password_hash(user.password_hash, password):
+        account = db.scalar(select(Staff).where(Staff.email == email))
+        account_type = None
+        resolved_role = None
+
+        if account and check_password_hash(account.password_hash, password):
+            account_type = "staff"
+            resolved_role = account.role
+        else:
+            account = db.scalar(select(Member).where(Member.email == email))
+            if account and check_password_hash(account.password_hash, password):
+                account_type = "member"
+                resolved_role = "customer"
+
+        if not account_type or not account:
             return _json_error("invalid credentials", 401)
-        if not user.is_active:
+        if not account.is_active:
             return _json_error("account disabled", 403)
 
-        claims = {"role": user.role, "name": user.full_name}
-        token = create_access_token(identity=str(user.id), additional_claims=claims)
-        return jsonify({"access_token": token, "role": user.role, "full_name": user.full_name})
+        identity = f"{account_type}:{account.id}"
+        claims = {"role": resolved_role, "name": account.full_name, "account_type": account_type}
+        token = create_access_token(identity=identity, additional_claims=claims)
+        return jsonify(
+            {
+                "access_token": token,
+                "role": resolved_role,
+                "full_name": account.full_name,
+                "account_type": account_type,
+            }
+        )
     finally:
         db.close()
+
 
 @bp.get("/me")
 @jwt_required()
 def me():
-    user_id = get_jwt_identity()
+    raw_identity = get_jwt_identity() or ""
+    try:
+        account_type, account_id = str(raw_identity).split(":", 1)
+        account_id_int = int(account_id)
+    except (ValueError, AttributeError):
+        return _json_error("invalid token identity", 400)
+
     db = SessionLocal()
     try:
-        user = db.get(User, int(user_id))
-        if not user:
-            return _json_error("user not found", 404)
-        return jsonify({
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "role": user.role,
-            "is_active": user.is_active
-        })
+        if account_type == "staff":
+            account = db.get(Staff, account_id_int)
+            role = account.role if account else None
+            timeline_field = "hired_at"
+        else:
+            account = db.get(Member, account_id_int)
+            role = "customer" if account else None
+            timeline_field = "joined_at"
+
+        if not account:
+            return _json_error("account not found", 404)
+
+        return jsonify(
+            {
+                "id": account.id,
+                "email": account.email,
+                "full_name": account.full_name,
+                "role": role,
+                "is_active": account.is_active,
+                "account_type": account_type,
+                timeline_field: getattr(account, timeline_field),
+            }
+        )
     finally:
         db.close()
 
