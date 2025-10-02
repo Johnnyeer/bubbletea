@@ -40,9 +40,10 @@ export default function AdminPage({
     const [quantityInputs, setQuantityInputs] = useState({});
     const [pendingItemId, setPendingItemId] = useState(null);
 
-    const isManager = Boolean(isAuthenticated && user?.role === "manager");
-    const canViewInventory = Boolean(isAuthenticated && (user?.role === "staff" || user?.role === "manager"));
-    const canManageInventory = Boolean(isManager);
+    const userRole = typeof user?.role === "string" ? user.role.toLowerCase() : "";
+    const isManager = Boolean(isAuthenticated && userRole === "manager");
+    const canViewInventory = Boolean(isAuthenticated && (userRole === "staff" || userRole === "manager"));
+    const canManageInventory = isManager;
     const authToken = session?.token || "";
 
     const updateStatusMessage = typeof system?.onStatusMessage === "function" ? system.onStatusMessage : null;

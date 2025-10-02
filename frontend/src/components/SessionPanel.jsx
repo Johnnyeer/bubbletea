@@ -5,6 +5,7 @@ export default function SessionPanel({ isAuthenticated, user, onLoadDashboard, d
     const identifierValue = user?.account_type === "staff"
         ? user?.username || user?.email || "Not provided"
         : user?.email || "Not provided";
+    const role = typeof user?.role === "string" ? user.role.toLowerCase() : "";
 
     return (
         <section style={{ marginTop: 24 }}>
@@ -21,12 +22,12 @@ export default function SessionPanel({ isAuthenticated, user, onLoadDashboard, d
                         <button onClick={() => onLoadDashboard("customer")} style={pillButtonStyle}>
                             Customer dashboard
                         </button>
-                        {(user.role === "staff" || user.role === "manager") && (
+                        {(role === "staff" || role === "manager") && (
                             <button onClick={() => onLoadDashboard("staff")} style={pillButtonStyle}>
                                 Staff dashboard
                             </button>
                         )}
-                        {user.role === "manager" && (
+                        {role === "manager" && (
                             <button onClick={() => onLoadDashboard("manager")} style={pillButtonStyle}>
                                 Manager dashboard
                             </button>

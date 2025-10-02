@@ -17,6 +17,7 @@ def _serialize(item: MenuItem) -> dict:
     return {
         "id": item.id,
         "name": item.name,
+        "category": item.category,
         "price": float(item.price or 0),
         "quantity": int(item.quantity or 0),
         "is_active": bool(item.is_active),
@@ -46,7 +47,7 @@ def _parse_quantity(raw_value) -> int:
 @bp.get("")
 def list_items():
     with SessionLocal() as session:
-        items = session.scalars(select(MenuItem).order_by(MenuItem.name)).all()
+        items = session.scalars(select(MenuItem).order_by(MenuItem.category, MenuItem.name)).all()
         return jsonify([_serialize(item) for item in items])
 
 
@@ -56,6 +57,8 @@ def create_item():
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
     raw_price = data.get("price")
+    raw_category = data.get("category")
+    category = (str(raw_category).strip() or None) if raw_category is not None else None
     is_active = bool(data.get("is_active", True))
     raw_quantity = data.get("quantity", 0)
 
@@ -75,7 +78,7 @@ def create_item():
         existing = session.scalar(select(MenuItem).where(MenuItem.name == name))
         if existing:
             return _json_error("item with that name already exists", 409)
-        item = MenuItem(name=name, price=price, is_active=is_active, quantity=quantity)
+        item = MenuItem(name=name, category=category, price=price, is_active=is_active, quantity=quantity)
         session.add(item)
         session.commit()
         session.refresh(item)
@@ -117,6 +120,10 @@ def update_item(item_id: int):
                 item.price = _parse_price(data.get("price"))
             except ValueError as exc:
                 return _json_error(str(exc), 400)
+
+        if "category" in data:
+            raw_category = data.get("category")
+            item.category = (str(raw_category).strip() or None) if raw_category is not None else None
 
         if "is_active" in data:
             item.is_active = bool(data.get("is_active"))

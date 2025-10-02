@@ -25,6 +25,8 @@ const STAFF_NAVIGATION = [
 
 const EMPTY_LOGIN = { email: "", password: "" };
 
+const normalizeRole = value => (typeof value === "string" ? value.toLowerCase() : "");
+
 const safePath = () => {
     if (typeof window === "undefined" || !window.location?.pathname) {
         return "/";
@@ -35,7 +37,8 @@ const safePath = () => {
 const tempId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const getNavigationForRole = role => {
-    if (role === "staff" || role === "manager") {
+    const normalized = normalizeRole(role);
+    if (normalized === "staff" || normalized === "manager") {
         return STAFF_NAVIGATION;
     }
     return CUSTOMER_NAVIGATION;
@@ -298,7 +301,7 @@ export default function App() {
             });
     };
 
-    const viewerRole = user?.role || "customer";
+    const viewerRole = normalizeRole(user?.role) || "customer";
     const isStaffSignedIn = Boolean(isAuthenticated && (viewerRole === "staff" || viewerRole === "manager"));
     const hideNavigationOnHome = currentPath === "/" && !isStaffSignedIn;
     const navigationLinks = hideNavigationOnHome ? [] : getNavigationForRole(viewerRole);

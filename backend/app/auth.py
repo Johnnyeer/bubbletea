@@ -15,6 +15,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import SessionLocal
 from .models import Member, Staff
+from .time_utils import to_local_iso
 
 bp = Blueprint("auth", __name__, url_prefix="/api")
 
@@ -226,13 +227,14 @@ def me():
         if not account:
             return _json_error("account not found", 404)
 
+        timestamp = getattr(account, timeline_field, None)
         payload = {
             "id": account.id,
             "full_name": account.full_name,
             "role": role,
             "is_active": account.is_active,
             "account_type": account_type,
-            timeline_field: getattr(account, timeline_field),
+            timeline_field: to_local_iso(timestamp),
         }
         if account_type == "staff":
             payload.update({"username": account.username, "email": None})
@@ -286,3 +288,6 @@ def manager_dashboard():
             ],
         }
     )
+
+
+
