@@ -186,6 +186,52 @@ def create_order():
     order_items: list[tuple[OrderItem, MenuItem]] = []
 
     with session_scope() as session:
+        inventory_reservations: dict[int, int] = {}
+        tracked_items: dict[int, MenuItem] = {}
+        inventory_lookup: dict[tuple[str, str], MenuItem] = {}
+        inventory_lookup_loaded = False
+
+        def _normalize_lookup_key(name: str | None, category: str | None) -> tuple[str, str]:
+            return ((name or "").strip().lower(), (category or "").strip().lower())
+
+        def _populate_inventory_lookup():
+            nonlocal inventory_lookup_loaded
+            if inventory_lookup_loaded:
+                return
+            for candidate in session.scalars(select(MenuItem)):
+                inventory_lookup[_normalize_lookup_key(candidate.name, candidate.category)] = candidate
+            inventory_lookup_loaded = True
+
+        def _find_inventory_item_by_label(label: object, category_hint: str | None = None) -> MenuItem | None:
+            if not isinstance(label, str):
+                return None
+            value = label.strip()
+            if not value or value.lower() == "none":
+                return None
+            _populate_inventory_lookup()
+            key = _normalize_lookup_key(value, category_hint)
+            candidate = inventory_lookup.get(key)
+            if candidate:
+                return candidate
+            normalized_value = value.lower()
+            for (name_key, _category_key), item in inventory_lookup.items():
+                if name_key == normalized_value:
+                    return item
+            return None
+
+        def reserve_item(item: MenuItem, amount: int, label: str | None = None):
+            if item.id not in tracked_items:
+                tracked_items[item.id] = item
+            if item.quantity is None:
+                return None
+            pending = inventory_reservations.get(item.id, 0)
+            available = item.quantity - pending
+            if available < amount:
+                name = (label or item.name or "item")
+                return _json_error(f"insufficient quantity for {name}", 400)
+            inventory_reservations[item.id] = pending + amount
+            return None
+
         for entry in raw_items:
             if not isinstance(entry, dict):
                 return _json_error("each item must be an object", 400)
@@ -211,15 +257,17 @@ def create_order():
             if not menu_item or not menu_item.is_active:
                 return _json_error("menu item not available", 404)
 
-            if menu_item.quantity is not None and menu_item.quantity < quantity:
-                return _json_error(f"insufficient quantity for {menu_item.name}", 400)
+            error_response = reserve_item(menu_item, quantity, menu_item.name)
+            if error_response:
+                return error_response
 
-            extra_adjustments = []
+            customizations = _normalize_customizations(entry.get("options"))
+
+            extra_counts: dict[int, int] = {}
             raw_inventory_ids = entry.get("inventory_item_ids")
             if raw_inventory_ids:
                 if not isinstance(raw_inventory_ids, list):
                     return _json_error("inventory_item_ids must be a list", 400)
-                extra_counts = {}
                 for raw_extra_id in raw_inventory_ids:
                     try:
                         extra_id = int(raw_extra_id)
@@ -229,19 +277,29 @@ def create_order():
                         continue
                     extra_counts[extra_id] = extra_counts.get(extra_id, 0) + 1
 
-                for extra_id, count in extra_counts.items():
-                    extra_item = session.get(MenuItem, extra_id)
-                    if not extra_item or not extra_item.is_active:
-                        return _json_error("inventory item not available", 404)
-                    required_qty = quantity * count
-                    if extra_item.quantity is not None and extra_item.quantity < required_qty:
-                        return _json_error(f"insufficient quantity for {extra_item.name}", 400)
-                    extra_adjustments.append((extra_item, required_qty))
+            if isinstance(customizations, dict):
+                milk_candidate = _find_inventory_item_by_label(customizations.get("milk"), "milk")
+                if milk_candidate and milk_candidate.id != menu_item.id and milk_candidate.id not in extra_counts:
+                    extra_counts[milk_candidate.id] = 1
+                addon_labels = customizations.get("addons")
+                if isinstance(addon_labels, list):
+                    for addon_label in addon_labels:
+                        addon_item = _find_inventory_item_by_label(addon_label, "addon")
+                        if addon_item and addon_item.id != menu_item.id and addon_item.id not in extra_counts:
+                            extra_counts[addon_item.id] = 1
+
+            for extra_id, count in extra_counts.items():
+                extra_item = session.get(MenuItem, extra_id)
+                if not extra_item or not extra_item.is_active:
+                    return _json_error("inventory item not available", 404)
+                required_qty = quantity * count
+                error_response = reserve_item(extra_item, required_qty, extra_item.name)
+                if error_response:
+                    return error_response
 
             unit_price = _coerce_decimal(entry.get("price"), menu_item.price)
             total_price = unit_price * quantity
 
-            customizations = _normalize_customizations(entry.get("options"))
             customizations_json = json.dumps(customizations) if customizations else None
 
             order_item = OrderItem(
@@ -256,11 +314,11 @@ def create_order():
             session.add(order_item)
             order_items.append((order_item, menu_item))
 
-            if menu_item.quantity is not None:
-                menu_item.quantity = max(0, menu_item.quantity - quantity)
-            for extra_item, decrease_amount in extra_adjustments:
-                if extra_item.quantity is not None:
-                    extra_item.quantity = max(0, extra_item.quantity - decrease_amount)
+        for item_id, decrease in inventory_reservations.items():
+            item = tracked_items.get(item_id)
+            if not item or item.quantity is None:
+                continue
+            item.quantity = max(0, item.quantity - decrease)
 
         session.commit()
 
@@ -301,4 +359,3 @@ def update_order(order_item_id: int):
         menu_item = session.get(MenuItem, order.item_id)
         member = session.get(Member, order.member_id) if order.member_id else None
         return jsonify(_serialize_order_item(order, menu_item, member))
-
