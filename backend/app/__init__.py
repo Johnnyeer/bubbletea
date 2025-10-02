@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash
 from .auth import bp as auth_bp
 from .db import SessionLocal, engine
 from .items import bp as items_bp
+from .analytics import bp as analytics_bp
 from .models import Base, MenuItem, Staff
 from .orders import bp as orders_bp
 from .schedules import bp as schedules_bp
@@ -138,6 +139,7 @@ def create_app():
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(items_bp)
+    app.register_blueprint(analytics_bp)
     app.register_blueprint(orders_bp)
     app.register_blueprint(schedules_bp)
 

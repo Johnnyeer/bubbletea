@@ -8,6 +8,7 @@ import CartPage from "./components/CartPage.jsx";
 import OrderSummaryPage from "./components/OrderSummaryPage.jsx";
 import SchedulingPage from "./components/SchedulingPage.jsx";
 import CurrentOrdersPage from "./components/CurrentOrdersPage.jsx";
+import AnalyticsPage from "./components/AnalyticsPage.jsx";
 
 const CUSTOMER_NAVIGATION = [
     { to: "/order", label: "Member Log In" },
@@ -19,6 +20,7 @@ const CUSTOMER_NAVIGATION = [
 const STAFF_NAVIGATION = [
     { to: "/", label: "Home" },
     { to: "/orders", label: "Current Orders" },
+    { to: "/analytics", label: "Analytics" },
     { to: "/admin", label: "Inventory" },
     { to: "/scheduling", label: "Schedule" },
 ];
@@ -368,6 +370,8 @@ export default function App() {
             );
         case "/orders":
             return <CurrentOrdersPage system={systemProps} session={sessionProps} />;
+        case "/analytics":
+            return <AnalyticsPage system={systemProps} session={sessionProps} />;
         case "/order-summary":
             return (
                 <OrderSummaryPage
