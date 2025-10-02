@@ -9,12 +9,14 @@ import OrderSummaryPage from "./components/OrderSummaryPage.jsx";
 import SchedulingPage from "./components/SchedulingPage.jsx";
 import CurrentOrdersPage from "./components/CurrentOrdersPage.jsx";
 import AnalyticsPage from "./components/AnalyticsPage.jsx";
+import PastOrdersPage from "./components/PastOrdersPage.jsx";
 
 const CUSTOMER_NAVIGATION = [
     { to: "/order", label: "Member Log In" },
     { to: "/menu", label: "Menu" },
     { to: "/cart", label: "Order" },
     { to: "/order-summary", label: "Order Summary" },
+    { to: "/past-orders", label: "Past Orders", requiresAuth: true },
 ];
 
 const STAFF_NAVIGATION = [
@@ -323,7 +325,9 @@ export default function App() {
     const viewerRole = normalizeRole(user?.role) || "customer";
     const isStaffSignedIn = Boolean(isAuthenticated && (viewerRole === "staff" || viewerRole === "manager"));
     const hideNavigationOnHome = currentPath === "/" && !isStaffSignedIn;
-    const navigationLinks = hideNavigationOnHome ? [] : getNavigationForRole(viewerRole);
+    const navigationLinks = hideNavigationOnHome
+        ? []
+        : getNavigationForRole(viewerRole).filter(link => !link.requiresAuth || isAuthenticated);
 
     const systemProps = {
         title: "Bubble Tea Shop",
@@ -400,6 +404,13 @@ export default function App() {
                     isRefreshing={isRefreshingOrders}
                 />
             );
+        case "/past-orders":
+            return (
+                <PastOrdersPage
+                    system={systemProps}
+                    session={sessionProps}
+                />
+            );
         case "/admin":
         case "/":
             return (
@@ -420,4 +431,3 @@ export default function App() {
             return <NotFoundPage system={systemProps} navigate={navigate} />;
     }
 }
-
