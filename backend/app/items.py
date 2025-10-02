@@ -12,6 +12,7 @@ bp = Blueprint("items", __name__, url_prefix="/api/items")
 
 CURRENCY_STEP = Decimal("0.01")
 
+ALLOWED_ITEM_CATEGORIES = {"tea", "milk", "addon"}
 
 def _serialize(item: MenuItem) -> dict:
     return {
@@ -58,7 +59,10 @@ def create_item():
     name = (data.get("name") or "").strip()
     raw_price = data.get("price")
     raw_category = data.get("category")
-    category = (str(raw_category).strip() or None) if raw_category is not None else None
+    category = str(raw_category or "").strip().lower()
+    if category not in ALLOWED_ITEM_CATEGORIES:
+        allowed = ", ".join(sorted(ALLOWED_ITEM_CATEGORIES))
+        return _json_error(f"category must be one of: {allowed}", 400)
     is_active = bool(data.get("is_active", True))
     raw_quantity = data.get("quantity", 0)
 
@@ -123,7 +127,11 @@ def update_item(item_id: int):
 
         if "category" in data:
             raw_category = data.get("category")
-            item.category = (str(raw_category).strip() or None) if raw_category is not None else None
+            category_value = str(raw_category or "").strip().lower()
+            if category_value not in ALLOWED_ITEM_CATEGORIES:
+                allowed = ", ".join(sorted(ALLOWED_ITEM_CATEGORIES))
+                return _json_error(f"category must be one of: {allowed}", 400)
+            item.category = category_value
 
         if "is_active" in data:
             item.is_active = bool(data.get("is_active"))
@@ -167,4 +175,3 @@ def delete_item(item_id: int):
         session.delete(item)
         session.commit()
         return jsonify({"message": "deleted"})
-

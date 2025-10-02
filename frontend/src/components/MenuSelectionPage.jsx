@@ -12,6 +12,24 @@ const formatCurrency = value => {
 
 const normalizeCategory = raw => (raw || "").toString().toLowerCase();
 
+const CUSTOMIZATION_CATEGORY_KEYS = ["tea", "milk", "addon"];
+const UNCATEGORIZED_KEY = "__uncategorized__";
+
+const formatCategoryLabel = raw => {
+    if (typeof raw !== "string") {
+        return "Other Items";
+    }
+    const trimmed = raw.trim();
+    if (!trimmed) {
+        return "Other Items";
+    }
+    return trimmed
+        .split(/[\s_-]+/)
+        .map(part => (part ? part.charAt(0).toUpperCase() + part.slice(1) : ""))
+        .filter(Boolean)
+        .join(" ");
+};
+
 const isNoneOption = itemName => /^no\s+/i.test((itemName || "").toString());
 
 const NONE_MILK_OPTION = {
@@ -94,16 +112,38 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
     const activeItems = useMemo(() => items.filter(item => item && item.is_active !== false), [items]);
 
     const groupedItems = useMemo(() => {
-        const groups = { tea: [], milk: [], addon: [], other: [] };
+        const groups = { tea: [], milk: [], addon: [] };
+        const extraMap = new Map();
+
         for (const item of activeItems) {
-            const key = normalizeCategory(item.category);
-            if (key in groups) {
-                groups[key].push(item);
-            } else {
-                groups.other.push(item);
+            if (!item) {
+                continue;
             }
+            const rawCategory = typeof item.category === "string" ? item.category : "";
+            const normalizedKey = normalizeCategory(rawCategory);
+            if (CUSTOMIZATION_CATEGORY_KEYS.includes(normalizedKey)) {
+                groups[normalizedKey].push(item);
+                continue;
+            }
+            const bucketKey = normalizedKey || UNCATEGORIZED_KEY;
+            if (!extraMap.has(bucketKey)) {
+                extraMap.set(bucketKey, {
+                    key: bucketKey,
+                    label: formatCategoryLabel(rawCategory),
+                    items: [],
+                });
+            }
+            extraMap.get(bucketKey).items.push(item);
         }
-        return groups;
+
+        const extras = Array.from(extraMap.values())
+            .map(entry => ({
+                ...entry,
+                items: entry.items.slice().sort((a, b) => (a?.name || "").localeCompare(b?.name || "")),
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+        return { ...groups, extras };
     }, [activeItems]);
 
     const teaOptions = groupedItems.tea;
@@ -117,6 +157,7 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
     }, [rawMilkOptions]);
     const addonOptions = groupedItems.addon.filter(option => !isNoneOption(option.name));
     const noneAddonOption = groupedItems.addon.find(option => isNoneOption(option.name));
+    const extraCategories = Array.isArray(groupedItems.extras) ? groupedItems.extras : [];
 
     useEffect(() => {
         if (selectedTeaId && teaOptions.some(option => option.id === selectedTeaId)) {
@@ -185,6 +226,24 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
 
     const handleClearAddons = () => {
         setSelectedAddonIds([]);
+    };
+
+    const handleAddStandaloneItem = item => {
+        if (!item || typeof onAddToCart !== "function") {
+            return;
+        }
+        const rawPrice = Number(item.price || 0);
+        const normalizedPrice = Number.isFinite(rawPrice) && !Number.isNaN(rawPrice)
+            ? Math.round(rawPrice * 100) / 100
+            : 0;
+        const payload = {
+            menu_item_id: item.id,
+            name: item.name || "Menu item",
+            price: normalizedPrice,
+            quantity: 1,
+            options: {},
+        };
+        onAddToCart(payload);
     };
 
     const handleAdd = () => {
@@ -362,11 +421,41 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
                                 Add to Cart
                             </button>
                         </div>
+                        {extraCategories.length > 0 && (
+                            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 12, display: "grid", gap: 12 }}>
+                                <h3 style={{ margin: "0" }}>More Menu Items</h3>
+                                {extraCategories.map(category => (
+                                    <div key={category.key}>
+                                        <h4 style={{ margin: "8px 0 4px 0" }}>{category.label}</h4>
+                                        {category.items.length === 0 ? (
+                                            <p style={{ margin: 0 }}>No items available.</p>
+                                        ) : (
+                                            <ul style={listStyle}>
+                                                {category.items.map(item => (
+                                                    <li key={item.id}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                                            <span>
+                                                                {item.name || "Menu item"} {formatCurrency(item.price)}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                style={secondaryButtonStyle}
+                                                                onClick={() => handleAddStandaloneItem(item)}
+                                                            >
+                                                                Add
+                                                            </button>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </section>
         </SystemLayout>
     );
 }
-
-

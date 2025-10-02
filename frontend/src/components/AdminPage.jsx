@@ -11,7 +11,13 @@ const cellStyle = { padding: "8px 4px", borderBottom: "1px solid #e5e7eb", verti
 const errorTextStyle = { color: "#b91c1c", fontWeight: "bold", marginTop: 8 };
 const helperTextStyle = { fontSize: "0.9rem", color: "#475569" };
 
-const EMPTY_ITEM = { name: "", category: "", price: "", quantity: "0" };
+const ITEM_CATEGORY_OPTIONS = [
+    { value: "tea", label: "Tea" },
+    { value: "milk", label: "Milk" },
+    { value: "addon", label: "Add-on" },
+];
+
+const EMPTY_ITEM = { name: "", category: ITEM_CATEGORY_OPTIONS[0].value, price: "", quantity: "0" };
 const successTextStyle = { color: "#15803d", fontWeight: "bold", marginTop: 8 };
 
 const formatCurrency = value => {
@@ -42,7 +48,7 @@ export default function AdminPage({
     const [inventoryError, setInventoryError] = useState("");
     const [quantityInputs, setQuantityInputs] = useState({});
     const [pendingItemId, setPendingItemId] = useState(null);
-    const [newItem, setNewItem] = useState(EMPTY_ITEM);
+    const [newItem, setNewItem] = useState(() => ({ ...EMPTY_ITEM }));
     const [isSavingItem, setIsSavingItem] = useState(false);
     const [newItemError, setNewItemError] = useState("");
     const [newItemMessage, setNewItemMessage] = useState("");
@@ -220,13 +226,17 @@ export default function AdminPage({
             return;
         }
         const trimmedName = (newItem.name || "").trim();
-        const trimmedCategory = (newItem.category || "").trim();
+        const categoryValue = String(newItem.category || "").trim().toLowerCase();
         const priceValue = Number(newItem.price);
         const quantityValue = Number.parseInt(String(newItem.quantity ?? "0"), 10);
         setNewItemError("");
         setNewItemMessage("");
         if (!trimmedName) {
             setNewItemError("Item name is required.");
+            return;
+        }
+        if (!ITEM_CATEGORY_OPTIONS.some(option => option.value === categoryValue)) {
+            setNewItemError("Category must be tea, milk, or add-on.");
             return;
         }
         if (!Number.isFinite(priceValue) || Number.isNaN(priceValue) || priceValue < 0) {
@@ -245,12 +255,10 @@ export default function AdminPage({
             }
             const payload = {
                 name: trimmedName,
+                category: categoryValue,
                 price: Math.round(priceValue * 100) / 100,
                 quantity: quantityValue,
             };
-            if (trimmedCategory) {
-                payload.category = trimmedCategory;
-            }
             const response = await fetch("/api/items", {
                 method: "POST",
                 headers,
@@ -493,13 +501,18 @@ export default function AdminPage({
                                 </label>
                                 <label style={labelStyle}>
                                     Category:
-                                    <input
-                                        type="text"
+                                    <select
                                         name="category"
                                         value={newItem.category}
                                         onChange={handleNewItemFieldChange}
                                         style={inputStyle}
-                                    />
+                                    >
+                                        {ITEM_CATEGORY_OPTIONS.map(option => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </label>
                                 <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                                     <label style={{ ...labelStyle, flex: "1 1 160px" }}>
