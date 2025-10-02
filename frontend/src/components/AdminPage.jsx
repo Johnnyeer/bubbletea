@@ -199,52 +199,53 @@ export default function AdminPage({
 
     return (
         <SystemLayout system={system}>
-            <section style={cardStyle}>
-                <h2 style={{ marginTop: 0 }}>Staff Sign In</h2>
-                <form onSubmit={onLoginSubmit} style={{ maxWidth: 360 }}>
-                    <label style={labelStyle}>
-                        Username:
-                        <input
-                            type="text"
-                            name="email"
-                            value={loginForm.email}
-                            onChange={onLoginChange}
-                            required
-                            style={inputStyle}
-                        />
-                    </label>
-                    <label style={labelStyle}>
-                        Password:
-                        <input
-                            type="password"
-                            name="password"
-                            value={loginForm.password}
-                            onChange={onLoginChange}
-                            required
-                            style={inputStyle}
-                        />
-                    </label>
-                    <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
-                        <button type="submit" style={primaryButtonStyle}>
-                            Sign In
-                        </button>
-                        {isAuthenticated ? (
-                            <button type="button" onClick={onLogout} style={secondaryButtonStyle}>
-                                Sign Out
+            {!isAuthenticated && (
+                <section style={cardStyle}>
+                    <h2 style={{ marginTop: 0 }}>Staff Sign In</h2>
+                    <form onSubmit={onLoginSubmit} style={{ maxWidth: 360 }}>
+                        <label style={labelStyle}>
+                            Username:
+                            <input
+                                type="text"
+                                name="email"
+                                value={loginForm.email}
+                                onChange={onLoginChange}
+                                required
+                                style={inputStyle}
+                            />
+                        </label>
+                        <label style={labelStyle}>
+                            Password:
+                            <input
+                                type="password"
+                                name="password"
+                                value={loginForm.password}
+                                onChange={onLoginChange}
+                                required
+                                style={inputStyle}
+                            />
+                        </label>
+                        <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
+                            <button type="submit" style={primaryButtonStyle}>
+                                Sign In
                             </button>
-                        ) : (
                             <button type="button" onClick={goToPath("/order")} style={secondaryButtonStyle}>
                                 Customer Page
                             </button>
-                        )}
-                    </div>
-                </form>
-            </section>
+                        </div>
+                    </form>
+                </section>
+            )}
 
             {isAuthenticated && user && (
-                <section style={{ ...cardStyle, marginTop: 24 }}>
+                <section style={{ ...cardStyle }}>
                     <h3 style={{ marginTop: 0 }}>Signed in as {user.full_name}</h3>
                     <p>Role: {user.role}</p>
+                    <div style={{ marginTop: 16 }}>
+                        <button type="button" onClick={onLogout} style={secondaryButtonStyle}>
+                            Sign Out
+                        </button>
+                    </div>
                 </section>
             )}
 
