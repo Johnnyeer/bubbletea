@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from .auth import role_required
 from .db import SessionLocal
 from .models import MenuItem, OrderItem, OrderRecord
+from .time_utils import to_local_iso
 
 bp = Blueprint("analytics", __name__, url_prefix="/api/analytics")
 
@@ -96,6 +97,10 @@ def analytics_summary():
         pending_stmt = select(func.count(OrderItem.id)).where(OrderItem.status != "complete")
         pending_count = session.scalar(pending_stmt) or 0
 
+        start_stmt = select(func.min(OrderRecord.completed_at)).where(OrderRecord.completed_at.isnot(None))
+        start_timestamp = session.scalar(start_stmt)
+        tracking_since = to_local_iso(start_timestamp) if start_timestamp else None
+
         custom_stmt = select(OrderRecord.qty, OrderRecord.customizations).where(OrderRecord.customizations.isnot(None))
         customization_rows = session.execute(custom_stmt).all()
 
@@ -119,6 +124,7 @@ def analytics_summary():
             "summary": {
                 "total_items_sold": total_sold,
                 "pending_order_items": int(pending_count),
+                "tracking_since": tracking_since,
             },
             "items_sold": items_sold,
             "popular": {

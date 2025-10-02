@@ -2,19 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import SystemLayout from "./SystemLayout.jsx";
 import { cardStyle, primaryButtonStyle } from "./styles.js";
 
-const statContainerStyle = {
-    display: "grid",
-    gap: 12,
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-};
-
 const statBoxStyle = {
     background: "#ffffff",
     border: "1px solid #e2e8f0",
     borderRadius: 8,
-    padding: 12,
+    padding: 16,
     display: "grid",
-    gap: 4,
+    gap: 6,
 };
 
 const tableWrapperStyle = { overflowX: "auto" };
@@ -30,6 +24,21 @@ const formatNumber = value => {
         return "0";
     }
     return amount.toLocaleString();
+};
+
+const formatDateLabel = value => {
+    if (!value) {
+        return null;
+    }
+    try {
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) {
+            return null;
+        }
+        return dt.toLocaleDateString();
+    } catch {
+        return null;
+    }
 };
 
 const PopularLine = ({ label, entry }) => {
@@ -112,6 +121,11 @@ export default function AnalyticsPage({ system, session }) {
     const popular = analytics?.popular || {};
     const itemsSold = Array.isArray(analytics?.items_sold) ? analytics.items_sold : [];
 
+    const trackingSinceLabel = formatDateLabel(summary.tracking_since);
+    const totalDrinksHeading = trackingSinceLabel
+        ? `Total drinks completed since ${trackingSinceLabel}`
+        : "Total drinks completed";
+
     return (
         <SystemLayout system={system}>
             <section style={{ ...cardStyle, display: "grid", gap: 16 }}>
@@ -129,15 +143,10 @@ export default function AnalyticsPage({ system, session }) {
 
                 {error && <div style={errorBoxStyle}>{error}</div>}
 
-                <div style={statContainerStyle}>
-                    <div style={statBoxStyle}>
-                        <span style={{ color: "#475569", fontSize: 13 }}>Total items sold</span>
-                        <span style={{ fontSize: 24, fontWeight: 700 }}>{formatNumber(summary.total_items_sold)}</span>
-                    </div>
-                    <div style={statBoxStyle}>
-                        <span style={{ color: "#475569", fontSize: 13 }}>Pending order items</span>
-                        <span style={{ fontSize: 24, fontWeight: 700 }}>{formatNumber(summary.pending_order_items)}</span>
-                    </div>
+                <div style={statBoxStyle}>
+                    <h3 style={{ margin: 0 }}>Pending orders</h3>
+                    <span style={{ fontSize: 28, fontWeight: 700 }}>{formatNumber(summary.pending_order_items)}</span>
+                    <span style={infoTextStyle}>Items still in the live queue.</span>
                 </div>
 
                 <div style={{ ...statBoxStyle, background: "#f8fafc" }}>
@@ -147,6 +156,14 @@ export default function AnalyticsPage({ system, session }) {
                         <PopularLine label="Milk" entry={popular.milk} />
                         <PopularLine label="Add-on" entry={popular.addon} />
                     </div>
+                </div>
+
+                <div style={statBoxStyle}>
+                    <h3 style={{ margin: 0 }}>{totalDrinksHeading}</h3>
+                    <span style={{ fontSize: 28, fontWeight: 700 }}>{formatNumber(summary.total_items_sold)}</span>
+                    {!trackingSinceLabel && (
+                        <span style={infoTextStyle}>No completed drinks recorded yet.</span>
+                    )}
                 </div>
 
                 <div>
