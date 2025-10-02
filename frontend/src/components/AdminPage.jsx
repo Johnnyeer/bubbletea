@@ -334,7 +334,7 @@ export default function AdminPage({
                 </section>
             )}
 
-            {isManager && (
+            {isManager && !isInventoryView && (
                 <section style={{ ...cardStyle, marginTop: 24 }}>
                     <h3 style={{ marginTop: 0 }}>Create a staff account</h3>
                     <form onSubmit={handleCreateAccount} style={{ maxWidth: 360 }}>
@@ -395,3 +395,4 @@ export default function AdminPage({
         </SystemLayout>
     );
 }
+
