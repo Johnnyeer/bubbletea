@@ -121,6 +121,46 @@ def _serialize_order_item(order: OrderItem, menu_item: MenuItem | None = None, m
     }
 
 
+def _serialize_completed_record(record: OrderRecord, menu_item: MenuItem | None = None, member: Member | None = None):
+    customizations = _deserialize_customizations(record.customizations)
+    milk_label = customizations.get("milk")
+    if milk_label is None or (isinstance(milk_label, str) and milk_label.strip() == ""):
+        milk_label = "None"
+    elif isinstance(milk_label, str):
+        milk_label = milk_label.strip()
+    else:
+        milk_label = str(milk_label)
+
+    addon_labels = customizations.get("addons")
+    if not isinstance(addon_labels, list):
+        addon_labels = []
+    else:
+        addon_labels = [label for label in (str(item).strip() for item in addon_labels) if label]
+
+    tea_label = customizations.get("tea")
+    if tea_label is not None and not isinstance(tea_label, str):
+        tea_label = str(tea_label)
+
+    options_payload = {
+        "tea": tea_label,
+        "milk": milk_label or "None",
+        "addons": addon_labels,
+    }
+
+    return {
+        "id": record.order_item_id,
+        "menu_item_id": record.item_id,
+        "name": (menu_item.name if menu_item else None),
+        "quantity": record.qty,
+        "status": record.status or "complete",
+        "total_price": float(record.total_price or 0),
+        "created_at": to_local_iso(record.created_at),
+        "completed_at": to_local_iso(record.completed_at) if record.completed_at else None,
+        "member_id": record.member_id,
+        "member_name": member.full_name if member else None,
+        "options": options_payload,
+    }
+
 def _get_identity(optional: bool = True):
     try:
         verify_jwt_in_request(optional=optional)
@@ -184,9 +224,38 @@ def list_orders():
                 return jsonify({"order_items": []})
             stmt = stmt.where(OrderItem.id.in_(filter_ids)).where(OrderItem.member_id.is_(None))
 
-        rows = session.execute(stmt).all()
-        payload = [_serialize_order_item(order, menu_item, member) for order, menu_item, member in rows]
-        return jsonify({"order_items": payload})
+        result_by_id: dict[int, dict] = {}
+        for order, menu_item, member in session.execute(stmt).all():
+            payload = _serialize_order_item(order, menu_item, member)
+            result_by_id[payload["id"]] = payload
+
+        record_stmt = (
+            select(OrderRecord, MenuItem, Member)
+            .join(MenuItem, MenuItem.id == OrderRecord.item_id)
+            .join(Member, Member.id == OrderRecord.member_id, isouter=True)
+            .order_by(OrderRecord.completed_at.desc())
+        )
+
+        if account_type == "member":
+            record_stmt = record_stmt.where(OrderRecord.member_id == account_id)
+            if filter_ids:
+                record_stmt = record_stmt.where(OrderRecord.order_item_id.in_(filter_ids))
+            else:
+                record_stmt = record_stmt.limit(200)
+        elif account_type == "staff":
+            if filter_ids:
+                record_stmt = record_stmt.where(OrderRecord.order_item_id.in_(filter_ids))
+            else:
+                record_stmt = record_stmt.limit(200)
+        else:
+            record_stmt = record_stmt.where(OrderRecord.order_item_id.in_(filter_ids)).where(OrderRecord.member_id.is_(None))
+
+        for record, menu_item, member in session.execute(record_stmt).all():
+            payload = _serialize_completed_record(record, menu_item, member)
+            result_by_id[payload["id"]] = payload
+
+        ordered_payload = sorted(result_by_id.values(), key=lambda item: item.get("created_at") or "", reverse=True)
+        return jsonify({"order_items": ordered_payload})
 
 
 @bp.post("")
