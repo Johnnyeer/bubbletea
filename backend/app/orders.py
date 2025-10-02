@@ -149,9 +149,18 @@ def _coerce_decimal(value, fallback: Decimal) -> Decimal:
 def list_orders():
     account_type, account_id, _ = _get_identity(optional=True)
 
-    if account_type is None:
-        # Guests have no persisted order history; return an empty collection.
-        return jsonify({"order_items": []})
+    raw_id_values = request.args.getlist("ids") or []
+    parsed_ids: set[int] = set()
+    for value in raw_id_values:
+        for segment in str(value).split(","):
+            part = segment.strip()
+            if not part:
+                continue
+            try:
+                parsed_ids.add(int(part))
+            except ValueError:
+                continue
+    filter_ids = sorted(parsed_ids)
 
     with session_scope() as session:
         stmt = (
@@ -163,9 +172,17 @@ def list_orders():
 
         if account_type == "member":
             stmt = stmt.where(OrderItem.member_id == account_id)
+            if filter_ids:
+                stmt = stmt.where(OrderItem.id.in_(filter_ids))
         elif account_type == "staff":
-            # staff can view all orders; no filter needed
-            stmt = stmt.limit(200)
+            if filter_ids:
+                stmt = stmt.where(OrderItem.id.in_(filter_ids))
+            else:
+                stmt = stmt.limit(200)
+        else:
+            if not filter_ids:
+                return jsonify({"order_items": []})
+            stmt = stmt.where(OrderItem.id.in_(filter_ids)).where(OrderItem.member_id.is_(None))
 
         rows = session.execute(stmt).all()
         payload = [_serialize_order_item(order, menu_item, member) for order, menu_item, member in rows]
@@ -404,3 +421,4 @@ def update_order(order_item_id: int):
         menu_item = session.get(MenuItem, order.item_id)
         member = session.get(Member, order.member_id) if order.member_id else None
         return jsonify(_serialize_order_item(order, menu_item, member))
+

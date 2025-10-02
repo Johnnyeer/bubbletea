@@ -219,8 +219,25 @@ export default function App() {
         }
         setIsRefreshingOrders(true);
         const headers = token ? { Authorization: "Bearer " + token } : {};
+        let url = "/api/orders";
+        if (!token) {
+            const lookupIds = recentOrderItems
+                .map(item => {
+                    const identifier = item?.id;
+                    if (identifier === undefined || identifier === null) {
+                        return "";
+                    }
+                    return String(identifier).trim();
+                })
+                .filter(Boolean);
+            if (lookupIds.length > 0) {
+                const params = new URLSearchParams();
+                params.set("ids", lookupIds.join(","));
+                url += `?${params.toString()}`;
+            }
+        }
 
-        fetch("/api/orders", { headers })
+        fetch(url, { headers })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
@@ -402,3 +419,4 @@ export default function App() {
             return <NotFoundPage system={systemProps} navigate={navigate} />;
     }
 }
+
