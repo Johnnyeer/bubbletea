@@ -81,6 +81,52 @@ def _deserialize_customizations(raw: str | None) -> dict:
     return result
 
 
+def _extract_inventory_reservations(raw) -> dict[int, int]:
+    """Read persisted inventory reservation metadata for an order item."""
+    if raw is None:
+        return {}
+
+    if isinstance(raw, str):
+        try:
+            data = json.loads(raw)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+    elif isinstance(raw, dict):
+        data = raw
+    else:
+        return {}
+
+    payload = data.get("_inventory_reservations")
+    reservations: dict[int, int] = {}
+
+    items: list[tuple[object, object]]
+    if isinstance(payload, dict):
+        items = list(payload.items())
+    elif isinstance(payload, list):
+        items = []
+        for entry in payload:
+            if not isinstance(entry, dict):
+                continue
+            items.append((entry.get("item_id"), entry.get("count")))
+    else:
+        return {}
+
+    for raw_item_id, raw_count in items:
+        try:
+            item_id = int(raw_item_id)
+        except (TypeError, ValueError):
+            continue
+        try:
+            count = int(raw_count)
+        except (TypeError, ValueError):
+            continue
+        if count <= 0:
+            continue
+        reservations[item_id] = count
+
+    return reservations
+
+
 def _serialize_order_item(order: OrderItem, menu_item: MenuItem | None = None, member: Member | None = None):
     customizations = _deserialize_customizations(order.customizations)
     milk_label = customizations.get("milk")
@@ -383,6 +429,13 @@ def create_order():
                 if error_response:
                     return error_response
 
+            if extra_counts:
+                customizations["_inventory_reservations"] = [
+                    {"item_id": extra_id, "count": count}
+                    for extra_id, count in sorted(extra_counts.items())
+                    if count > 0
+                ]
+
             unit_price = _coerce_decimal(entry.get("price"), menu_item.price)
             total_price = unit_price * quantity
 
@@ -490,4 +543,43 @@ def update_order(order_item_id: int):
         menu_item = session.get(MenuItem, order.item_id)
         member = session.get(Member, order.member_id) if order.member_id else None
         return jsonify(_serialize_order_item(order, menu_item, member))
+
+
+@bp.delete("/<int:order_item_id>")
+def delete_order(order_item_id: int):
+    account_type, account_id, claims = _get_identity(optional=False)
+    role = (claims or {}).get("role")
+    if role not in {"staff", "manager"}:
+        return _json_error("insufficient permissions", 403)
+
+    with session_scope() as session:
+        order = session.get(OrderItem, order_item_id)
+        if not order:
+            return _json_error("order not found", 404)
+
+        reservations = _extract_inventory_reservations(order.customizations)
+
+        menu_item = session.get(MenuItem, order.item_id)
+        if menu_item and menu_item.quantity is not None:
+            base_qty = menu_item.quantity or 0
+            restock_amount = order.qty or 0
+            if restock_amount > 0:
+                menu_item.quantity = base_qty + restock_amount
+
+        for extra_id, per_unit_count in reservations.items():
+            if extra_id == order.item_id:
+                continue
+            extra_item = session.get(MenuItem, extra_id)
+            if not extra_item or extra_item.quantity is None:
+                continue
+            restock_amount = (order.qty or 0) * per_unit_count
+            if restock_amount <= 0:
+                continue
+            current_qty = extra_item.quantity or 0
+            extra_item.quantity = current_qty + restock_amount
+
+        session.delete(order)
+        session.commit()
+
+    return jsonify({"message": "order deleted"})
 

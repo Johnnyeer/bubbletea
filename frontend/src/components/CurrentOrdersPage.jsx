@@ -45,6 +45,7 @@ export default function CurrentOrdersPage({ system, session }) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [pendingUpdateId, setPendingUpdateId] = useState(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
     const updateStatus = typeof system?.onStatusMessage === "function" ? system.onStatusMessage : null;
 
@@ -140,6 +141,36 @@ export default function CurrentOrdersPage({ system, session }) {
         }
     };
 
+
+    const handleDelete = async orderId => {
+        const order = items.find(entry => entry.id === orderId);
+        if (!order) {
+            return;
+        }
+
+        setPendingDeleteId(orderId);
+        setError("");
+        try {
+            const response = await fetch(`/api/orders/${orderId}`, {
+                method: "DELETE",
+                headers,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || data.message || "Unable to delete order");
+            }
+            setItems(previous => previous.filter(entry => entry.id !== orderId));
+            const message = data.message || `Order #${orderId} deleted.`;
+            updateStatus?.(message);
+        } catch (err) {
+            const message = err.message || "Unable to delete order";
+            setError(message);
+            updateStatus?.(message);
+        } finally {
+            setPendingDeleteId(null);
+        }
+    };
+
     const renderOrderDetails = item => {
         const lines = [];
         const milkLabel = item?.options?.milk;
@@ -175,6 +206,9 @@ export default function CurrentOrdersPage({ system, session }) {
                 <div style={{ display: "grid", gap: 12 }}>
                     {items.map(item => {
                         const detailText = renderOrderDetails(item);
+                        const isPendingUpdate = pendingUpdateId === item.id;
+                        const isPendingDelete = pendingDeleteId === item.id;
+                        const isPending = isPendingUpdate || isPendingDelete;
                         return (
                             <div key={item.id} style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: 12, background: "#fff", display: "grid", gap: 6 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
@@ -193,8 +227,7 @@ export default function CurrentOrdersPage({ system, session }) {
                                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                         {ORDER_STATUSES.map(status => {
                                             const isActive = item.status === status;
-                                            const isPending = pendingUpdateId === item.id;
-                                            const baseStyle = {
+                                            const statusButtonStyle = {
                                                 ...secondaryButtonStyle,
                                                 padding: "6px 12px",
                                                 borderColor: isActive ? "#2563eb" : "#cbd5e1",
@@ -209,12 +242,28 @@ export default function CurrentOrdersPage({ system, session }) {
                                                     type="button"
                                                     onClick={() => handleStatusUpdate(item.id, status)}
                                                     disabled={isPending || isActive}
-                                                    style={baseStyle}
+                                                    style={statusButtonStyle}
                                                 >
                                                     {formatStatus(status)}
                                                 </button>
                                             );
                                         })}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(item.id)}
+                                            disabled={isPending}
+                                            style={{
+                                                ...secondaryButtonStyle,
+                                                padding: "6px 12px",
+                                                borderColor: "#dc2626",
+                                                background: "#fee2e2",
+                                                color: "#991b1b",
+                                                opacity: isPending ? 0.7 : 1,
+                                                cursor: isPending ? "wait" : "pointer",
+                                            }}
+                                        >
+                                            {isPendingDelete ? "Deleting..." : "Delete"}
+                                        </button>
                                     </div>
                                 )}
                             </div>
