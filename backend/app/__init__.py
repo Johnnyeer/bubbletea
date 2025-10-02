@@ -11,7 +11,7 @@ from .auth import bp as auth_bp
 from .db import SessionLocal, engine
 from .items import bp as items_bp
 from .analytics import bp as analytics_bp
-from .models import Base, MenuItem, Staff
+from .models import Base, MenuItem, OrderItem, Staff
 from .orders import bp as orders_bp
 from .schedules import bp as schedules_bp
 
@@ -65,6 +65,30 @@ def _ensure_menu_item_category_column():
         if "category" not in columns:
             connection.exec_driver_sql("ALTER TABLE menu_items ADD COLUMN category VARCHAR(50)")
 
+
+
+
+def _ensure_order_items_autoincrement():
+    """Ensure order_items table uses AUTOINCREMENT primary key on SQLite."""
+    if engine.url.get_backend_name() != "sqlite":
+        return
+    with engine.begin() as connection:
+        table_sql = connection.exec_driver_sql("SELECT sql FROM sqlite_master WHERE type='table' AND name='order_items'").scalar()
+        if not table_sql or "AUTOINCREMENT" in (table_sql or "").upper():
+            return
+        connection.exec_driver_sql("ALTER TABLE order_items RENAME TO order_items_backup")
+        OrderItem.__table__.create(connection, checkfirst=False)
+        column_list = "id, member_id, staff_id, item_id, qty, status, total_price, created_at, customizations"
+        connection.exec_driver_sql(
+            f"INSERT INTO order_items ({column_list}) SELECT {column_list} FROM order_items_backup"
+        )
+        connection.exec_driver_sql("DROP TABLE order_items_backup")
+        max_id = connection.exec_driver_sql("SELECT MAX(id) FROM order_items").scalar()
+        if max_id is not None:
+            connection.exec_driver_sql(
+                "INSERT OR REPLACE INTO sqlite_sequence(name, seq) VALUES ('order_items', ?)",
+                (int(max_id),),
+            )
 
 def _ensure_order_item_customizations_column():
     """Ensure the order_items table includes the customizations column."""
@@ -124,6 +148,7 @@ def create_app():
         Base.metadata.create_all(connection)
     _ensure_menu_item_quantity_column()
     _ensure_menu_item_category_column()
+    _ensure_order_items_autoincrement()
     _ensure_order_item_customizations_column()
     _ensure_default_admin()
     _ensure_default_menu_items()

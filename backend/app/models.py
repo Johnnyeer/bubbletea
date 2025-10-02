@@ -61,6 +61,7 @@ ORDER_STATES = ("received", "preparing", "complete")
 
 class OrderItem(Base):
     __tablename__ = "order_items"
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     member_id: Mapped[int | None] = mapped_column(ForeignKey("members.id", ondelete="SET NULL"))

@@ -353,10 +353,33 @@ def update_order(order_item_id: int):
             order.staff_id = account_id
 
         if new_status == "complete":
-            order.status = new_status
             menu_item = session.get(MenuItem, order.item_id)
             member = session.get(Member, order.member_id) if order.member_id else None
+            order.status = new_status
             completed_at = current_local_datetime()
+            existing_record = session.scalar(
+                select(OrderRecord).where(OrderRecord.order_item_id == order.id)
+            )
+            serialized = _serialize_order_item(order, menu_item, member)
+
+            if existing_record:
+                existing_record.member_id = order.member_id
+                if account_type == "staff" and account_id:
+                    existing_record.staff_id = account_id
+                else:
+                    existing_record.staff_id = order.staff_id
+                existing_record.item_id = order.item_id
+                existing_record.qty = order.qty
+                existing_record.status = order.status
+                existing_record.total_price = order.total_price
+                existing_record.created_at = order.created_at
+                existing_record.customizations = order.customizations
+                if not existing_record.completed_at:
+                    existing_record.completed_at = completed_at
+                session.delete(order)
+                session.commit()
+                return jsonify(serialized)
+
             record = OrderRecord(
                 order_item_id=order.id,
                 member_id=order.member_id,
@@ -369,7 +392,6 @@ def update_order(order_item_id: int):
                 completed_at=completed_at,
                 customizations=order.customizations,
             )
-            serialized = _serialize_order_item(order, menu_item, member)
             session.add(record)
             session.delete(order)
             session.commit()

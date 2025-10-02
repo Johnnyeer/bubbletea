@@ -41,6 +41,21 @@ const formatDateLabel = value => {
     }
 };
 
+const formatDateTime = value => {
+    if (!value) {
+        return null;
+    }
+    try {
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) {
+            return null;
+        }
+        return dt.toLocaleString();
+    } catch {
+        return null;
+    }
+};
+
 const PopularLine = ({ label, entry }) => {
     if (!entry) {
         return (
@@ -122,6 +137,7 @@ export default function AnalyticsPage({ system, session }) {
     const itemsSold = Array.isArray(analytics?.items_sold) ? analytics.items_sold : [];
 
     const trackingSinceLabel = formatDateLabel(summary.tracking_since);
+    const trackingSinceDetail = formatDateTime(summary.tracking_since);
     const totalDrinksHeading = trackingSinceLabel
         ? `Total drinks completed since ${trackingSinceLabel}`
         : "Total drinks completed";
@@ -161,7 +177,9 @@ export default function AnalyticsPage({ system, session }) {
                 <div style={statBoxStyle}>
                     <h3 style={{ margin: 0 }}>{totalDrinksHeading}</h3>
                     <span style={{ fontSize: 28, fontWeight: 700 }}>{formatNumber(summary.total_items_sold)}</span>
-                    {!trackingSinceLabel && (
+                    {trackingSinceDetail ? (
+                        <span style={infoTextStyle}>First drink completed on {trackingSinceDetail}.</span>
+                    ) : (
                         <span style={infoTextStyle}>No completed drinks recorded yet.</span>
                     )}
                 </div>
