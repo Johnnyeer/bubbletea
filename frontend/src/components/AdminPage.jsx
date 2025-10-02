@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import SystemLayout from "./SystemLayout.jsx";
 import { primaryButtonStyle, secondaryButtonStyle, labelStyle, inputStyle, cardStyle } from "./styles.js";
 
@@ -89,7 +89,7 @@ export default function AdminPage({
         }
     };
 
-    const loadInventory = () => {
+    const loadInventory = useCallback(() => {
         if (!canViewInventory) {
             return;
         }
@@ -119,7 +119,7 @@ export default function AdminPage({
                 }
             })
             .finally(() => setIsLoadingInventory(false));
-    };
+    }, [canViewInventory, authToken, updateStatusMessage]);
 
     useEffect(() => {
         if (!canViewInventory) {
@@ -129,8 +129,19 @@ export default function AdminPage({
             return;
         }
         loadInventory();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [canViewInventory, authToken]);
+    }, [canViewInventory, loadInventory]);
+
+    useEffect(() => {
+        if (!canViewInventory) {
+            return undefined;
+        }
+        const intervalId = window.setInterval(() => {
+            if (!pendingItemId) {
+                loadInventory();
+            }
+        }, 10000);
+        return () => window.clearInterval(intervalId);
+    }, [canViewInventory, loadInventory, pendingItemId]);
 
     const handleRefreshInventory = () => {
         loadInventory();
