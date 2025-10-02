@@ -62,6 +62,7 @@ export default function AdminPage({
     const authToken = session?.token || "";
 
     const updateStatusMessage = typeof system?.onStatusMessage === "function" ? system.onStatusMessage : null;
+    const statusMessage = typeof system?.statusMessage === "string" ? system.statusMessage : "";
 
     const getAdjustmentValue = itemId => {
         const raw = quantityInputs[itemId];
@@ -372,6 +373,9 @@ export default function AdminPage({
                                 style={inputStyle}
                             />
                         </label>
+                        {statusMessage && (
+                            <p style={errorTextStyle}>{statusMessage}</p>
+                        )}
                         <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
                             <button type="submit" style={primaryButtonStyle}>
                                 Sign In
