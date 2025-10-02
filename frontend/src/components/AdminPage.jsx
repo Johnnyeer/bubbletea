@@ -242,7 +242,7 @@ export default function AdminPage({
                 </section>
             )}
 
-            {isAuthenticated && user && (
+            {isAuthenticated && user && !isInventoryView && (
                 <section style={{ ...cardStyle }}>
                     <h3 style={{ marginTop: 0 }}>Signed in as {user.full_name}</h3>
                     <p>Role: {user.role}</p>
@@ -395,4 +395,5 @@ export default function AdminPage({
         </SystemLayout>
     );
 }
+
 
