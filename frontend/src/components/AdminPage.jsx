@@ -43,6 +43,8 @@ export default function AdminPage({
     const userRole = typeof user?.role === "string" ? user.role.toLowerCase() : "";
     const isManager = Boolean(isAuthenticated && userRole === "manager");
     const canViewInventory = Boolean(isAuthenticated && (userRole === "staff" || userRole === "manager"));
+    const isInventoryView = system?.currentPath === "/admin";
+    const shouldShowInventory = Boolean(canViewInventory && isInventoryView);
     const canManageInventory = isManager;
     const authToken = session?.token || "";
 
@@ -90,7 +92,7 @@ export default function AdminPage({
     };
 
     const loadInventory = useCallback(() => {
-        if (!canViewInventory) {
+        if (!shouldShowInventory) {
             return;
         }
         setIsLoadingInventory(true);
@@ -119,20 +121,20 @@ export default function AdminPage({
                 }
             })
             .finally(() => setIsLoadingInventory(false));
-    }, [canViewInventory, authToken, updateStatusMessage]);
+    }, [shouldShowInventory, authToken, updateStatusMessage]);
 
     useEffect(() => {
-        if (!canViewInventory) {
+        if (!shouldShowInventory) {
             setInventoryItems([]);
             setQuantityInputs({});
             setInventoryError("");
             return;
         }
         loadInventory();
-    }, [canViewInventory, loadInventory]);
+    }, [shouldShowInventory, loadInventory]);
 
     useEffect(() => {
-        if (!canViewInventory) {
+        if (!shouldShowInventory) {
             return undefined;
         }
         const intervalId = window.setInterval(() => {
@@ -141,9 +143,12 @@ export default function AdminPage({
             }
         }, 10000);
         return () => window.clearInterval(intervalId);
-    }, [canViewInventory, loadInventory, pendingItemId]);
+    }, [shouldShowInventory, loadInventory, pendingItemId]);
 
     const handleRefreshInventory = () => {
+        if (!shouldShowInventory) {
+            return;
+        }
         loadInventory();
     };
 
@@ -152,7 +157,7 @@ export default function AdminPage({
     };
 
     const handleAdjustQuantity = async (itemId, mode) => {
-        if (!canManageInventory) {
+        if (!canManageInventory || !shouldShowInventory) {
             return;
         }
         const rawValue = String(getAdjustmentValue(itemId)).trim();
@@ -249,7 +254,7 @@ export default function AdminPage({
                 </section>
             )}
 
-            {canViewInventory && (
+            {shouldShowInventory && (
                 <section style={{ ...cardStyle, marginTop: 24 }}>
                     <h3 style={{ marginTop: 0 }}>Inventory</h3>
                     <p style={helperTextStyle}>Track remaining quantities for each menu item.</p>
