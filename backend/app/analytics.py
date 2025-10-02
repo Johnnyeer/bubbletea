@@ -80,14 +80,15 @@ def analytics_summary():
         )
         sold_rows = session.execute(item_stmt).all()
 
-        items_sold = []
+        base_items = []
         total_sold = 0
         for item_id, name, category, quantity_sold in sold_rows:
             qty = int(quantity_sold or 0)
             total_sold += qty
-            items_sold.append(
+            base_items.append(
                 {
                     "item_id": item_id,
+                    "item_key": f"menu:{item_id}",
                     "name": name,
                     "category": category,
                     "quantity_sold": qty,
@@ -120,6 +121,26 @@ def analytics_summary():
             for addon_label in addon_labels:
                 addon_counter[addon_label] += quantity
 
+        extra_items = []
+
+        def _extend_from_counter(counter, category):
+            for label, count in counter.most_common():
+                if not label:
+                    continue
+                extra_items.append(
+                    {
+                        "item_id": None,
+                        "item_key": f"{category}:{label.lower()}",
+                        "name": label,
+                        "category": category,
+                        "quantity_sold": int(count),
+                    }
+                )
+
+        _extend_from_counter(milk_counter, "milk")
+        _extend_from_counter(addon_counter, "addon")
+
+        items_sold = base_items + extra_items
         payload = {
             "summary": {
                 "total_items_sold": total_sold,

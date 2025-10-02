@@ -56,6 +56,25 @@ const formatDateTime = value => {
     }
 };
 
+const formatCategoryLabel = value => {
+    if (!value) {
+        return 'Other';
+    }
+    return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
+const resolveItemKey = item => {
+    if (item && item.item_id !== undefined && item.item_id !== null) {
+        return `item:${item.item_id}`;
+    }
+    if (item && item.item_key) {
+        return item.item_key;
+    }
+    const category = item?.category || 'misc';
+    const name = item?.name || 'item';
+    return `${category}:${name}`.toLowerCase();
+};
+
 const PopularLine = ({ label, entry }) => {
     if (!entry) {
         return (
@@ -201,15 +220,16 @@ export default function AnalyticsPage({ system, session }) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {itemsSold.map(item => (
-                                        <tr key={item.item_id}>
-                                            <td style={cellStyle}>{item.name || "Item"}</td>
-                                            <td style={cellStyle}>
-                                                {(item.category || "").charAt(0).toUpperCase() + (item.category || "").slice(1)}
-                                            </td>
-                                            <td style={{ ...cellStyle, fontWeight: 600 }}>{formatNumber(item.quantity_sold)}</td>
-                                        </tr>
-                                    ))}
+                                    {itemsSold.map(item => {
+                                        const rowKey = resolveItemKey(item);
+                                        return (
+                                            <tr key={rowKey}>
+                                                <td style={cellStyle}>{item.name || "Item"}</td>
+                                                <td style={cellStyle}>{formatCategoryLabel(item.category)}</td>
+                                                <td style={{ ...cellStyle, fontWeight: 600 }}>{formatNumber(item.quantity_sold)}</td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -221,4 +241,3 @@ export default function AnalyticsPage({ system, session }) {
         </SystemLayout>
     );
 }
-
