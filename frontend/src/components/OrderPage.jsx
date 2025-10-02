@@ -31,9 +31,9 @@ export default function OrderPage({
                         </div>
                         <form onSubmit={onLoginSubmit} style={{ display: 'grid', gap: 16 }}>
                             <label style={labelStyle}>
-                                Email/Phone Number
+                                Email
                                 <input
-                                    type="text"
+                                    type="email"
                                     name="email"
                                     value={loginForm.email}
                                     onChange={onLoginChange}
@@ -115,3 +115,4 @@ export default function OrderPage({
         </div>
     );
 }
+

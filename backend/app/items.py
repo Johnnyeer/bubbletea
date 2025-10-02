@@ -52,7 +52,7 @@ def list_items():
 
 
 @bp.post("")
-@role_required("manager", "staff")
+@role_required("manager")
 def create_item():
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
@@ -167,3 +167,4 @@ def delete_item(item_id: int):
         session.delete(item)
         session.commit()
         return jsonify({"message": "deleted"})
+

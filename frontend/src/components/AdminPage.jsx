@@ -11,6 +11,9 @@ const cellStyle = { padding: "8px 4px", borderBottom: "1px solid #e5e7eb", verti
 const errorTextStyle = { color: "#b91c1c", fontWeight: "bold", marginTop: 8 };
 const helperTextStyle = { fontSize: "0.9rem", color: "#475569" };
 
+const EMPTY_ITEM = { name: "", category: "", price: "", quantity: "0" };
+const successTextStyle = { color: "#15803d", fontWeight: "bold", marginTop: 8 };
+
 const formatCurrency = value => {
     const amount = Number(value || 0);
     if (Number.isNaN(amount)) {
@@ -39,6 +42,10 @@ export default function AdminPage({
     const [inventoryError, setInventoryError] = useState("");
     const [quantityInputs, setQuantityInputs] = useState({});
     const [pendingItemId, setPendingItemId] = useState(null);
+    const [newItem, setNewItem] = useState(EMPTY_ITEM);
+    const [isSavingItem, setIsSavingItem] = useState(false);
+    const [newItemError, setNewItemError] = useState("");
+    const [newItemMessage, setNewItemMessage] = useState("");
 
     const userRole = typeof user?.role === "string" ? user.role.toLowerCase() : "";
     const isManager = Boolean(isAuthenticated && userRole === "manager");
@@ -58,6 +65,11 @@ export default function AdminPage({
     const handleFieldChange = event => {
         const { name, value } = event.target;
         setNewAccount(previous => ({ ...previous, [name]: value }));
+    };
+
+    const handleNewItemFieldChange = event => {
+        const { name, value } = event.target;
+        setNewItem(previous => ({ ...previous, [name]: value }));
     };
 
     const handleCreateAccount = async event => {
@@ -202,6 +214,128 @@ export default function AdminPage({
         }
     };
 
+    const handleCreateInventoryItem = async event => {
+        event.preventDefault();
+        if (!canManageInventory || !shouldShowInventory) {
+            return;
+        }
+        const trimmedName = (newItem.name || "").trim();
+        const trimmedCategory = (newItem.category || "").trim();
+        const priceValue = Number(newItem.price);
+        const quantityValue = Number.parseInt(String(newItem.quantity ?? "0"), 10);
+        setNewItemError("");
+        setNewItemMessage("");
+        if (!trimmedName) {
+            setNewItemError("Item name is required.");
+            return;
+        }
+        if (!Number.isFinite(priceValue) || Number.isNaN(priceValue) || priceValue < 0) {
+            setNewItemError("Enter a valid price of $0.00 or higher.");
+            return;
+        }
+        if (!Number.isFinite(quantityValue) || Number.isNaN(quantityValue) || quantityValue < 0) {
+            setNewItemError("Quantity must be zero or a positive whole number.");
+            return;
+        }
+        setIsSavingItem(true);
+        try {
+            const headers = { "Content-Type": "application/json" };
+            if (authToken) {
+                headers.Authorization = "Bearer " + authToken;
+            }
+            const payload = {
+                name: trimmedName,
+                price: Math.round(priceValue * 100) / 100,
+                quantity: quantityValue,
+            };
+            if (trimmedCategory) {
+                payload.category = trimmedCategory;
+            }
+            const response = await fetch("/api/items", {
+                method: "POST",
+                headers,
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || "Unable to add item");
+            }
+            setInventoryItems(previous => {
+                const next = previous.some(item => item.id === data.id)
+                    ? previous.map(item => (item.id === data.id ? data : item))
+                    : [...previous, data];
+                return next.sort((a, b) => {
+                    const categoryA = (a.category || "").toLowerCase();
+                    const categoryB = (b.category || "").toLowerCase();
+                    if (categoryA === categoryB) {
+                        return a.name.localeCompare(b.name);
+                    }
+                    return categoryA.localeCompare(categoryB);
+                });
+            });
+            setQuantityInputs(previous => ({ ...previous, [data.id]: DEFAULT_ADJUSTMENT }));
+            setNewItem({ ...EMPTY_ITEM });
+            setInventoryError("");
+            const message = (data.name || "Menu item") + " added to the menu.";
+            setNewItemMessage(message);
+            if (updateStatusMessage) {
+                updateStatusMessage(message);
+            }
+        } catch (error) {
+            const message = (error && error.message) ? error.message : "Unable to add item";
+            setNewItemError(message);
+            if (updateStatusMessage) {
+                updateStatusMessage(message);
+            }
+        } finally {
+            setIsSavingItem(false);
+        }
+    };
+
+    const handleDeleteItem = async itemId => {
+        if (!canManageInventory || !shouldShowInventory) {
+            return;
+        }
+        const targetItem = inventoryItems.find(item => item.id === itemId);
+        const itemName = targetItem?.name || "";
+        const confirmationLabel = itemName || "this menu item";
+        if (typeof window !== "undefined" && !window.confirm(`Remove ${confirmationLabel} from the menu?`)) {
+            setNewItemMessage("");
+            return;
+        }
+        setPendingItemId(itemId);
+        setInventoryError("");
+        setNewItemError("");
+        setNewItemMessage("");
+        try {
+            const headers = authToken ? { Authorization: "Bearer " + authToken } : {};
+            const response = await fetch(`/api/items/${itemId}`, { method: "DELETE", headers });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || "Unable to remove item");
+            }
+            setInventoryItems(previous => previous.filter(item => item.id !== itemId));
+            setQuantityInputs(previous => {
+                const next = { ...previous };
+                delete next[itemId];
+                return next;
+            });
+            const message = itemName ? itemName + " removed from the menu." : "Menu item removed.";
+            setNewItemMessage(message);
+            if (updateStatusMessage) {
+                updateStatusMessage(message);
+            }
+        } catch (error) {
+            const message = (error && error.message) ? error.message : "Unable to remove item";
+            setInventoryError(message);
+            if (updateStatusMessage) {
+                updateStatusMessage(message);
+            }
+        } finally {
+            setPendingItemId(null);
+        }
+    };
+
     return (
         <SystemLayout system={system}>
             {!isAuthenticated && (
@@ -251,6 +385,8 @@ export default function AdminPage({
                             Sign Out
                         </button>
                     </div>
+
+
                 </section>
             )}
 
@@ -316,6 +452,14 @@ export default function AdminPage({
                                                     >
                                                         Remove
                                                     </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteItem(item.id)}
+                                                        style={{ ...secondaryButtonStyle, background: "#fecaca", borderColor: "#dc2626", color: "#7f1d1d" }}
+                                                        disabled={pendingItemId === item.id}
+                                                    >
+                                                        Delete Item
+                                                    </button>
                                                 </div>
                                             </td>
                                         )}
@@ -331,6 +475,71 @@ export default function AdminPage({
                             </tbody>
                         </table>
                     </div>
+
+                    {canManageInventory && (
+                        <div style={{ marginTop: 24 }}>
+                            <h4 style={{ margin: "0 0 8px 0" }}>Add a new menu item</h4>
+                            <form onSubmit={handleCreateInventoryItem} style={{ display: "grid", gap: 12, maxWidth: 420 }}>
+                                <label style={labelStyle}>
+                                    Name:
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={newItem.name}
+                                        onChange={handleNewItemFieldChange}
+                                        required
+                                        style={inputStyle}
+                                    />
+                                </label>
+                                <label style={labelStyle}>
+                                    Category:
+                                    <input
+                                        type="text"
+                                        name="category"
+                                        value={newItem.category}
+                                        onChange={handleNewItemFieldChange}
+                                        style={inputStyle}
+                                    />
+                                </label>
+                                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                                    <label style={{ ...labelStyle, flex: "1 1 160px" }}>
+                                        Price:
+                                        <input
+                                            type="number"
+                                            name="price"
+                                            min="0"
+                                            step="0.01"
+                                            value={newItem.price}
+                                            onChange={handleNewItemFieldChange}
+                                            required
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                    <label style={{ ...labelStyle, flex: "1 1 160px" }}>
+                                        Starting quantity:
+                                        <input
+                                            type="number"
+                                            name="quantity"
+                                            min="0"
+                                            step="1"
+                                            value={newItem.quantity}
+                                            onChange={handleNewItemFieldChange}
+                                            required
+                                            style={inputStyle}
+                                        />
+                                    </label>
+                                </div>
+                                <div>
+                                    <button type="submit" disabled={isSavingItem} style={primaryButtonStyle}>
+                                        {isSavingItem ? "Saving..." : "Add menu item"}
+                                    </button>
+                                </div>
+                            </form>
+                            {newItemError && <p style={errorTextStyle}>{newItemError}</p>}
+                            {newItemMessage && <p style={successTextStyle}>{newItemMessage}</p>}
+                        </div>
+                    )}
+
                 </section>
             )}
 
@@ -395,5 +604,3 @@ export default function AdminPage({
         </SystemLayout>
     );
 }
-
-
