@@ -9,6 +9,7 @@ import {
 export default function OrderPage({
     navigate,
     loginForm,
+    statusMessage,
     onLoginChange,
     onLoginSubmit,
     onGuestCheckout,
@@ -52,6 +53,11 @@ export default function OrderPage({
                                     style={inputStyle}
                                 />
                             </label>
+                            {statusMessage && (
+                                <div style={{ color: '#dc2626', fontSize: 14 }}>
+                                    {statusMessage}
+                                </div>
+                            )}
                             <button
                                 type="submit"
                                 style={{ ...primaryButtonStyle, padding: '10px 18px' }}

@@ -133,7 +133,7 @@ export default function App() {
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
-                    throw new Error(data.error || "Login failed");
+                    throw new Error("Log-in details are incorrect. Please try again.");
                 }
                 return data;
             })
@@ -145,7 +145,7 @@ export default function App() {
                     navigate(nextPath);
                 }
             })
-            .catch(error => setStatusMessage(error.message || "Login failed"));
+            .catch(error => setStatusMessage(error.message || "Log-in details are incorrect. Please try again."));
     };
 
     const handleOrderLoginSubmit = event => handleLoginSubmit(event, "/menu");
@@ -350,6 +350,7 @@ export default function App() {
                 <OrderPage
                     navigate={navigate}
                     loginForm={loginForm}
+                    statusMessage={statusMessage}
                     onLoginChange={handleLoginChange}
                     onLoginSubmit={handleOrderLoginSubmit}
                     onGuestCheckout={handleGuestCheckout}
