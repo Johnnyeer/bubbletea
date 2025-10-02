@@ -1,58 +1,16 @@
 """Analytics endpoints for staff and managers."""
-import json
 from collections import Counter
 
 from flask import Blueprint, jsonify
 from sqlalchemy import func, select
 
 from .auth import role_required
+from .customizations import extract_customization_labels
 from .db import SessionLocal
 from .models import MenuItem, OrderItem, OrderRecord
 from .time_utils import to_local_iso
 
 bp = Blueprint("analytics", __name__, url_prefix="/api/analytics")
-
-
-def _clean_label(value):
-    if not isinstance(value, str):
-        return None
-    label = value.strip()
-    return label if label else None
-
-
-def _extract_customizations(raw):
-    if not raw:
-        return None, None, []
-    try:
-        data = json.loads(raw)
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return None, None, []
-    if not isinstance(data, dict):
-        return None, None, []
-
-    tea_label = _clean_label(data.get("tea"))
-    if tea_label and tea_label.lower() == "none":
-        tea_label = None
-
-    milk_label = _clean_label(data.get("milk"))
-    if milk_label and milk_label.lower() == "none":
-        milk_label = None
-
-    addon_entries = data.get("addons")
-    addon_labels = []
-    if isinstance(addon_entries, list):
-        source = addon_entries
-    elif isinstance(addon_entries, str):
-        source = [part.strip() for part in addon_entries.split(",")]
-    else:
-        source = []
-
-    for addon in source:
-        label = _clean_label(addon)
-        if label and label.lower() != "none":
-            addon_labels.append(label)
-
-    return tea_label, milk_label, addon_labels
 
 
 def _format_popular_entry(counter):
@@ -113,7 +71,7 @@ def analytics_summary():
             quantity = int(qty or 0)
             if quantity <= 0:
                 continue
-            tea_label, milk_label, addon_labels = _extract_customizations(raw)
+            tea_label, milk_label, addon_labels = extract_customization_labels(raw)
             if tea_label:
                 tea_counter[tea_label] += quantity
             if milk_label:

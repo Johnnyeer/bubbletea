@@ -7,6 +7,7 @@ from flask_jwt_extended import get_jwt, get_jwt_identity, verify_jwt_in_request
 from sqlalchemy import select
 
 from .auth import _json_error, _parse_identity, session_scope
+from .customizations import deserialize_customizations, extract_inventory_reservations, normalize_customizations
 from .models import Member, MenuItem, OrderItem, OrderRecord, ORDER_STATES
 from .time_utils import current_local_datetime, to_local_iso
 
@@ -14,121 +15,8 @@ from .time_utils import current_local_datetime, to_local_iso
 bp = Blueprint("orders", __name__, url_prefix="/api/orders")
 
 
-def _normalize_customizations(raw) -> dict:
-    """Normalize incoming customization payload for persistence."""
-    if not isinstance(raw, dict):
-        return {}
-
-    result: dict[str, object] = {}
-
-    if "tea" in raw:
-        tea = raw.get("tea")
-        if tea is None:
-            result["tea"] = None
-        else:
-            label = str(tea).strip()
-            result["tea"] = label or None
-
-    if "milk" in raw:
-        milk = raw.get("milk")
-        if milk is None:
-            result["milk"] = "None"
-        else:
-            label = str(milk).strip()
-            result["milk"] = label or "None"
-
-    if "addons" in raw:
-        addons = raw.get("addons")
-        cleaned: list[str] = []
-        if isinstance(addons, (list, tuple, set)):
-            cleaned = [str(item).strip() for item in addons if str(item).strip()]
-        elif isinstance(addons, str):
-            cleaned = [part.strip() for part in addons.split(",") if part.strip()]
-        result["addons"] = cleaned
-
-    return result
-
-
-def _deserialize_customizations(raw: str | None) -> dict:
-    """Convert stored customization JSON to a safe dictionary."""
-    if not raw:
-        return {}
-    try:
-        data = json.loads(raw)
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return {}
-    if not isinstance(data, dict):
-        return {}
-
-    result: dict[str, object] = {}
-
-    milk = data.get("milk")
-    if milk is not None:
-        label = str(milk).strip()
-        result["milk"] = label or "None"
-
-    addons = data.get("addons")
-    if isinstance(addons, list):
-        result["addons"] = [str(item).strip() for item in addons if str(item).strip()]
-    elif isinstance(addons, str):
-        result["addons"] = [part.strip() for part in addons.split(",") if part.strip()]
-
-    tea = data.get("tea")
-    if tea is not None:
-        label = str(tea).strip()
-        result["tea"] = label or None
-
-    return result
-
-
-def _extract_inventory_reservations(raw) -> dict[int, int]:
-    """Read persisted inventory reservation metadata for an order item."""
-    if raw is None:
-        return {}
-
-    if isinstance(raw, str):
-        try:
-            data = json.loads(raw)
-        except (TypeError, ValueError, json.JSONDecodeError):
-            return {}
-    elif isinstance(raw, dict):
-        data = raw
-    else:
-        return {}
-
-    payload = data.get("_inventory_reservations")
-    reservations: dict[int, int] = {}
-
-    items: list[tuple[object, object]]
-    if isinstance(payload, dict):
-        items = list(payload.items())
-    elif isinstance(payload, list):
-        items = []
-        for entry in payload:
-            if not isinstance(entry, dict):
-                continue
-            items.append((entry.get("item_id"), entry.get("count")))
-    else:
-        return {}
-
-    for raw_item_id, raw_count in items:
-        try:
-            item_id = int(raw_item_id)
-        except (TypeError, ValueError):
-            continue
-        try:
-            count = int(raw_count)
-        except (TypeError, ValueError):
-            continue
-        if count <= 0:
-            continue
-        reservations[item_id] = count
-
-    return reservations
-
-
 def _serialize_order_item(order: OrderItem, menu_item: MenuItem | None = None, member: Member | None = None):
-    customizations = _deserialize_customizations(order.customizations)
+    customizations = deserialize_customizations(order.customizations)
     milk_label = customizations.get("milk")
     if milk_label is None or (isinstance(milk_label, str) and milk_label.strip() == ""):
         milk_label = "None"
@@ -168,7 +56,7 @@ def _serialize_order_item(order: OrderItem, menu_item: MenuItem | None = None, m
 
 
 def _serialize_completed_record(record: OrderRecord, menu_item: MenuItem | None = None, member: Member | None = None):
-    customizations = _deserialize_customizations(record.customizations)
+    customizations = deserialize_customizations(record.customizations)
     milk_label = customizations.get("milk")
     if milk_label is None or (isinstance(milk_label, str) and milk_label.strip() == ""):
         milk_label = "None"
@@ -393,7 +281,7 @@ def create_order():
             if error_response:
                 return error_response
 
-            customizations = _normalize_customizations(entry.get("options"))
+            customizations = normalize_customizations(entry.get("options"))
 
             extra_counts: dict[int, int] = {}
             raw_inventory_ids = entry.get("inventory_item_ids")
@@ -557,7 +445,7 @@ def delete_order(order_item_id: int):
         if not order:
             return _json_error("order not found", 404)
 
-        reservations = _extract_inventory_reservations(order.customizations)
+        reservations = extract_inventory_reservations(order.customizations)
 
         menu_item = session.get(MenuItem, order.item_id)
         if menu_item and menu_item.quantity is not None:
