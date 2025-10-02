@@ -5,7 +5,6 @@ export default function SystemHeader({
     navigation = [],
     navigate,
     currentPath,
-    statusMessage,
 }) {
     const navItems = navigation.map((link, index) => (
         <span key={link.to}>
@@ -21,7 +20,6 @@ export default function SystemHeader({
             <div style={{ fontWeight: "bold" }}>{title}</div>
             {navItems.length > 0 && <div style={{ margin: "8px 0" }}>{navItems}</div>}
             <hr style={{ margin: "8px 0" }} />
-            {statusMessage && <div style={{ marginBottom: 8, fontWeight: "bold" }}>Status: {statusMessage}</div>}
         </header>
     );
 }

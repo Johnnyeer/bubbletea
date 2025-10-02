@@ -73,6 +73,22 @@ class OrderItem(Base):
     customizations: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class OrderRecord(Base):
+    __tablename__ = "order_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_item_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    member_id: Mapped[int | None] = mapped_column(ForeignKey("members.id", ondelete="SET NULL"))
+    staff_id: Mapped[int | None] = mapped_column(ForeignKey("staff.id", ondelete="SET NULL"))
+    item_id: Mapped[int] = mapped_column(ForeignKey("menu_items.id", ondelete="RESTRICT"), nullable=False)
+    qty: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="complete")
+    total_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, default=current_local_datetime)
+    customizations: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 SHIFT_NAMES = ("morning", "evening")
 
 

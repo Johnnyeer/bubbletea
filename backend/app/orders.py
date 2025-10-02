@@ -7,7 +7,7 @@ from flask_jwt_extended import get_jwt, get_jwt_identity, verify_jwt_in_request
 from sqlalchemy import select
 
 from .auth import _json_error, _parse_identity, session_scope
-from .models import Member, MenuItem, OrderItem, ORDER_STATES
+from .models import Member, MenuItem, OrderItem, OrderRecord, ORDER_STATES
 from .time_utils import current_local_datetime, to_local_iso
 
 
@@ -349,10 +349,33 @@ def update_order(order_item_id: int):
         if not order:
             return _json_error("order not found", 404)
 
-        order.status = new_status
         if account_type == "staff" and account_id:
             order.staff_id = account_id
 
+        if new_status == "complete":
+            order.status = new_status
+            menu_item = session.get(MenuItem, order.item_id)
+            member = session.get(Member, order.member_id) if order.member_id else None
+            completed_at = current_local_datetime()
+            record = OrderRecord(
+                order_item_id=order.id,
+                member_id=order.member_id,
+                staff_id=order.staff_id,
+                item_id=order.item_id,
+                qty=order.qty,
+                status=order.status,
+                total_price=order.total_price,
+                created_at=order.created_at,
+                completed_at=completed_at,
+                customizations=order.customizations,
+            )
+            serialized = _serialize_order_item(order, menu_item, member)
+            session.add(record)
+            session.delete(order)
+            session.commit()
+            return jsonify(serialized)
+
+        order.status = new_status
         session.commit()
         session.refresh(order)
 
