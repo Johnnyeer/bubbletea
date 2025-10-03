@@ -250,8 +250,11 @@ export default function App() {
             .then(data => {
                 const collection = Array.isArray(data.order_items) ? data.order_items : [];
                 const lookup = new Map(collection.map(item => [item.id, item]));
+                const remainingIds = new Set(collection.map(item => item.id));
                 setRecentOrderItems(previous =>
-                    previous.map(orderItem => {
+                    previous
+                        .filter(orderItem => remainingIds.has(orderItem.id))
+                        .map(orderItem => {
                         const update = lookup.get(orderItem.id);
                         if (!update) {
                             return orderItem;
