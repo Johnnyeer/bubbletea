@@ -109,7 +109,24 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const activeItems = useMemo(() => items.filter(item => item && item.is_active !== false), [items]);
+    const activeItems = useMemo(() => {
+        return items.filter(item => {
+            if (!item || item.is_active === false) {
+                return false;
+            }
+            if (isNoneOption(item.name)) {
+                return true;
+            }
+            if (item.quantity === null || item.quantity === undefined) {
+                return true;
+            }
+            const numericQuantity = Number(item.quantity);
+            if (!Number.isFinite(numericQuantity)) {
+                return true;
+            }
+            return numericQuantity > 0;
+        });
+    }, [items]);
 
     const groupedItems = useMemo(() => {
         const groups = { tea: [], milk: [], addon: [] };
