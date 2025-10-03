@@ -54,7 +54,7 @@ export default function CartPage({ system, cartItems = [], navigate, onCheckout,
                                             {qty} x {formatCurrency(item.price)}
                                         </div>
                                         {details.length > 0 && (
-                                            <div style={{ color: "#64748b", fontSize: 13 }}>{details.join(" | ")}</div>
+                                            <div style={{ color: "#64748b", fontSize: 13 }}>{details.join(", ")}</div>
                                         )}
                                     </div>
                                     <div style={{ fontWeight: 700 }}>{formatCurrency((item.price || 0) * qty)}</div>
@@ -83,4 +83,3 @@ export default function CartPage({ system, cartItems = [], navigate, onCheckout,
         </SystemLayout>
     );
 }
-
