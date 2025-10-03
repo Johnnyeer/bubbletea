@@ -22,12 +22,26 @@ def _ensure_default_admin():
             return
         admin = Staff(
             username="admin",
+            email="admin@example.com",
             password_hash=generate_password_hash("admin"),
             full_name="Administrator",
             role="manager",
         )
         session.add(admin)
         session.commit()
+
+
+def _ensure_staff_email_column():
+    """Ensure the staff table includes the email column."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("staff")}
+        if "email" not in columns:
+            connection.exec_driver_sql("ALTER TABLE staff ADD COLUMN email VARCHAR(255)")
+            try:
+                connection.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ix_staff_email ON staff (email)")
+            except Exception:  # pragma: no cover - index creation best-effort
+                pass
 
 def _ensure_menu_item_quantity_column():
     """Ensure the menu_items table includes the quantity column."""
@@ -46,6 +60,7 @@ def create_app():
     with engine.begin() as connection:
         Base.metadata.create_all(connection)
     _ensure_menu_item_quantity_column()
+    _ensure_staff_email_column()
     _ensure_default_admin()
 
     @app.get("/api/health")

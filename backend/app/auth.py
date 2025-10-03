@@ -1,6 +1,7 @@
 # backend/app/auth.py
 from flask import Blueprint, request, jsonify
 from functools import wraps
+from contextlib import contextmanager
 
 from flask_jwt_extended import (
     create_access_token,
@@ -10,16 +11,83 @@ from flask_jwt_extended import (
     verify_jwt_in_request,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import select
+from sqlalchemy import func, select
 from .db import SessionLocal
 from .models import Member, Staff
 
 bp = Blueprint("auth", __name__, url_prefix="/api")
 
-
 def _json_error(msg, code=400):
     return jsonify({"error": msg}), code
 
+@contextmanager
+def session_scope():
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+def _parse_identity(identity):
+    if not identity or not isinstance(identity, str):
+        return None, None
+    account_type, _, raw_id = identity.partition(":")
+    account_type = account_type.strip().lower() or None
+    raw_id = raw_id.strip()
+    try:
+        account_id = int(raw_id) if raw_id else None
+    except ValueError:
+        account_id = None
+    return account_type, account_id
+
+def role_required(*roles):
+    allowed_roles = {role.strip().lower() for role in roles if role}
+
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                verify_jwt_in_request()
+            except Exception:
+                return _json_error("authorization required", 401)
+
+            identity = get_jwt_identity()
+            account_type, account_id = _parse_identity(identity)
+            if account_type != "staff" or account_id is None:
+                return _json_error("insufficient permissions", 403)
+
+            claims = get_jwt() or {}
+            token_role = (claims.get("role") or "").strip().lower()
+
+            with SessionLocal() as session:
+                staff = session.get(Staff, account_id)
+                if not staff or not staff.is_active:
+                    return _json_error("account disabled", 403)
+                db_role = (staff.role or "").strip().lower()
+
+            effective_role = db_role or token_role
+            if allowed_roles:
+                expanded_roles = set(allowed_roles)
+                if "staff" in allowed_roles:
+                    expanded_roles.update({"manager", "admin"})
+                if "manager" in allowed_roles:
+                    expanded_roles.add("admin")
+
+                if not effective_role and token_role:
+                    effective_role = token_role
+
+                if effective_role not in expanded_roles:
+                    return _json_error("insufficient permissions", 403)
+
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 @bp.post("/auth/register")
 def register():
@@ -76,28 +144,36 @@ def register():
     finally:
         db.close()
 
-
 @bp.post("/auth/login")
 def login():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
+    username = (data.get("username") or "").strip().lower()
     password = (data.get("password") or "").strip()
 
-    if not email or not password:
-        return _json_error("email and password required", 400)
+    if not (email or username) or not password:
+        return _json_error("email or username and password required", 400)
 
     db = SessionLocal()
     try:
-        account = db.scalar(select(Staff).where(Staff.email == email))
         account_type = None
         resolved_role = None
+        account = None
 
-        if account and check_password_hash(account.password_hash, password):
+        staff = None
+        if username:
+            staff = db.scalar(select(Staff).where(func.lower(Staff.username) == username))
+
+        if staff and check_password_hash(staff.password_hash, password):
+            account = staff
             account_type = "staff"
-            resolved_role = account.role
+            resolved_role = staff.role
         else:
-            account = db.scalar(select(Member).where(Member.email == email))
-            if account and check_password_hash(account.password_hash, password):
+            member = None
+            if email:
+                member = db.scalar(select(Member).where(func.lower(Member.email) == email))
+            if member and check_password_hash(member.password_hash, password):
+                account = member
                 account_type = "member"
                 resolved_role = "customer"
 
@@ -119,6 +195,5 @@ def login():
         )
     finally:
         db.close()
-
 
 

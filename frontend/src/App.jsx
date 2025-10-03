@@ -27,7 +27,7 @@ const STAFF_NAVIGATION = [
     { to: "/scheduling", label: "Schedule" },
 ];
 
-const EMPTY_LOGIN = { email: "", password: "" };
+const EMPTY_LOGIN = { email: "", username: "", password: "" };
 
 const normalizeRole = value => (typeof value === "string" ? value.toLowerCase() : "");
 
@@ -153,10 +153,11 @@ export default function App() {
             })
             .then(data => {
                 const profile = {
-                    full_name: data.full_name || loginForm.email || "",
+                    full_name: data.full_name || loginForm.username || loginForm.email || "",
                     role: data.role || "customer",
                     account_type: data.account_type || "member",
                     email: loginForm.email || "",
+                    username: loginForm.username || "",
                 };
                 setToken(data.access_token || "");
                 setUser(profile);

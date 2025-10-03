@@ -355,8 +355,8 @@ export default function AdminPage({
                             Username:
                             <input
                                 type="text"
-                                name="email"
-                                value={loginForm.email}
+                                name="username"
+                                value={loginForm.username}
                                 onChange={onLoginChange}
                                 required
                                 style={inputStyle}
