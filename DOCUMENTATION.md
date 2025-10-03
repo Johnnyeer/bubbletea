@@ -102,7 +102,6 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 - `/api/analytics/summary`: manager/staff endpoint aggregating `OrderRecord` data to report total sales, pending queue size, and most popular teas, milks, and add-ons.
 
 ### Supporting utilities
-- `backend/app/time_utils.py`: timezone-aware timestamps and ISO formatting.
 - `backend/app/analytics.py` & `customizations.py`: transform completed orders into analytics-friendly counters.
 
 ## Frontend Application (React)

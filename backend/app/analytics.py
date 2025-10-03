@@ -1,6 +1,8 @@
 """Analytics endpoints for staff and managers."""
 from collections import Counter
 
+from datetime import datetime, timezone
+
 from flask import Blueprint, jsonify
 from sqlalchemy import func, select
 
@@ -8,9 +10,19 @@ from .auth import role_required
 from .customizations import extract_customization_labels
 from .db import SessionLocal
 from .models import MenuItem, OrderItem, OrderRecord
-from .time_utils import to_local_iso
-
 bp = Blueprint("analytics", __name__, url_prefix="/api/analytics")
+
+
+def to_local_iso(value: datetime | None) -> str | None:
+    """Return a local ISO8601 string for the given datetime."""
+    if value is None or not isinstance(value, datetime):
+        return None
+    dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    try:
+        local_dt = dt.astimezone()
+    except (OSError, ValueError):
+        local_dt = dt
+    return local_dt.isoformat()
 
 
 def _format_popular_entry(counter):

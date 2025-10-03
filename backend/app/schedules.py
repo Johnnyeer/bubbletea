@@ -1,5 +1,5 @@
 """Scheduling endpoints."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity
@@ -7,10 +7,24 @@ from sqlalchemy import select
 
 from .auth import _json_error, _parse_identity, role_required, session_scope
 from .models import ScheduleShift, SHIFT_NAMES, Staff
-from .time_utils import current_local_datetime, to_local_iso
-
-
 bp = Blueprint("schedules", __name__, url_prefix="/api/scheduling")
+
+
+def current_local_datetime() -> datetime:
+    """Return the current local datetime with timezone info."""
+    return datetime.now(timezone.utc).astimezone()
+
+
+def to_local_iso(value: datetime | None) -> str | None:
+    """Return a local ISO8601 string for the given datetime."""
+    if value is None or not isinstance(value, datetime):
+        return None
+    dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    try:
+        local_dt = dt.astimezone()
+    except (OSError, ValueError):
+        local_dt = dt
+    return local_dt.isoformat()
 
 
 def _serialize_shift(shift: ScheduleShift, staff: Staff | None = None):
