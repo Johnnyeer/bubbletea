@@ -48,12 +48,24 @@ const getNavigationForRole = role => {
     return CUSTOMER_NAVIGATION;
 };
 
+const loadStoredUser = () => {
+    if (typeof window === "undefined") {
+        return null;
+    }
+    try {
+        const raw = window.localStorage.getItem("jwt_user");
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+};
+
 export default function App() {
     const [currentPath, setCurrentPath] = useState(safePath);
     const [health, setHealth] = useState(null);
     const [loginForm, setLoginForm] = useState(EMPTY_LOGIN);
     const [token, setToken] = useState(() => localStorage.getItem("jwt") || "");
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(loadStoredUser);
     const [statusMessage, setStatusMessage] = useState("");
     const [dashboardData, setDashboardData] = useState(null);
     const [cartItems, setCartItems] = useState([]);
@@ -78,33 +90,32 @@ export default function App() {
     }, []);
 
     useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
         if (!token) {
-            localStorage.removeItem("jwt");
+            window.localStorage.removeItem("jwt");
             setUser(null);
             return;
         }
 
-        localStorage.setItem("jwt", token);
-        fetch("/api/me", {
-            headers: { Authorization: "Bearer " + token },
-        })
-            .then(async response => {
-                if (!response.ok) {
-                    const data = await response.json().catch(() => ({}));
-                    throw new Error(data.error || "Unable to load profile");
-                }
-                return response.json();
-            })
-            .then(profile => {
-                setUser(profile);
-                setStatusMessage("");
-            })
-            .catch(error => {
-                console.error(error);
-                setStatusMessage(error.message);
-                setToken("");
-            });
+        window.localStorage.setItem("jwt", token);
     }, [token]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+        if (!user) {
+            window.localStorage.removeItem("jwt_user");
+            return;
+        }
+        try {
+            window.localStorage.setItem("jwt_user", JSON.stringify(user));
+        } catch {
+            // ignore serialization issues
+        }
+    }, [user]);
 
     const isAuthenticated = Boolean(token && user);
 
@@ -125,6 +136,7 @@ export default function App() {
     const handleLoginSubmit = (event, nextPath) => {
         event.preventDefault();
         setStatusMessage("Signing in...");
+        setUser(null);
         setDashboardData(null);
 
         fetch("/api/auth/login", {
@@ -140,7 +152,14 @@ export default function App() {
                 return data;
             })
             .then(data => {
+                const profile = {
+                    full_name: data.full_name || loginForm.email || "",
+                    role: data.role || "customer",
+                    account_type: data.account_type || "member",
+                    email: loginForm.email || "",
+                };
                 setToken(data.access_token || "");
+                setUser(profile);
                 setStatusMessage(nextPath ? "Login successful. Let's build your drink." : "Login successful.");
                 setLoginForm(EMPTY_LOGIN);
                 if (nextPath) {
@@ -161,6 +180,7 @@ export default function App() {
 
     const handleGuestCheckout = () => {
         setToken("");
+        setUser(null);
         setDashboardData(null);
         setStatusMessage("Guest mode enabled. Browse the menu and build your order.");
         navigate("/menu");
@@ -301,28 +321,10 @@ export default function App() {
     };
 
     const loadDashboard = endpoint => {
-        if (!token) {
-            return;
-        }
-        setStatusMessage("Loading dashboard...");
-        fetch(`/api/dashboard/${endpoint}`, {
-            headers: { Authorization: "Bearer " + token },
-        })
-            .then(async response => {
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(data.error || "Unable to load dashboard");
-                }
-                return data;
-            })
-            .then(data => {
-                setDashboardData(data);
-                setStatusMessage("");
-            })
-            .catch(error => {
-                setStatusMessage(error.message || "Unable to load dashboard");
-                setDashboardData(null);
-            });
+        const label = (endpoint || "dashboard").toString();
+        const message = `Dashboard data (${label}) is not available.`;
+        setDashboardData({ message, available_actions: [] });
+        setStatusMessage(message);
     };
 
     const viewerRole = normalizeRole(user?.role) || "customer";

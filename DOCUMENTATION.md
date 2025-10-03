@@ -75,8 +75,8 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 ### Authentication & user management (`backend/app/auth.py`)
 - `/api/auth/register`: registers members (email) or staff (username) accounts.
 - `/api/auth/login`: verifies credentials and returns a JWT with role claims.
-- `/api/me`: returns the current profile payload.
-- `/api/dashboard/*`: lightweight role-specific greetings used by the frontend session panel.
+- Frontend caches the returned profile locally; there is no `/api/me` endpoint in the current backend build.
+- Dashboard shortcuts currently display local placeholder messaging until matching `/api/dashboard/*` endpoints are implemented.
 - Helpers include `session_scope()` for session management and `role_required()` for guardrails.
 
 ### Menu management (`backend/app/items.py`)
@@ -118,7 +118,7 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 - `PastOrdersPage.jsx`: authenticated history view calling `/api/orders` and filtering for completed records.
 
 ### Staff & manager tooling
-- `AdminPage.jsx`: dual-purpose page combining login/logout controls, inventory browsing, quantity adjustments, new item creation, and (for managers) staff account creation.
+- `AdminPage.jsx`: dual-purpose page combining login/logout controls, inventory browsing, quantity adjustments, new item creation, and (for managers) staff account creation via `/api/admin/accounts`. Implement the API endpoint before enabling in production.
 - `CurrentOrdersPage.jsx`: live queue dashboard for staff; supports status transitions and deletions through `/api/orders/<id>`.
 - `AnalyticsPage.jsx`: loads `/api/analytics/summary` and presents sales metrics plus popular options.
 - `SchedulingPage.jsx`: weekly shift planner backed by `/api/scheduling`, allowing claims and assignments.
@@ -126,6 +126,7 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 
 ### State & API interaction patterns
 - All fetch calls include JWT headers when available; error messages are surfaced via a shared `statusMessage` banner stored in `App.jsx`.
+- `App.jsx` persists the JWT and last known profile to `localStorage` so the session survives refreshes even without `/api/me`. Clearing the token also clears the cached profile.
 - Order submission serializes cart items into the API format expected by `POST /api/orders`, and success responses hydrate the order summary view.
 
 ## Order Journey Walkthrough

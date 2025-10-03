@@ -398,7 +398,6 @@ export default function AdminPage({
                         </button>
                     </div>
 
-
                 </section>
             )}
 
@@ -618,6 +617,7 @@ export default function AdminPage({
                     {accountMessage && <p style={{ marginTop: 12 }}>{accountMessage}</p>}
                 </section>
             )}
+
         </SystemLayout>
     );
 }
