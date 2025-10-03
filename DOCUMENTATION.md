@@ -6,6 +6,55 @@
 - Docker support is provided through `docker-compose.yml`, which builds the API (exposed on port 8000) and serves the compiled frontend through Nginx (port 80).
 - JSON Web Tokens (JWT) secure protected endpoints. Authentication and authorization are role-based (`customer`, `staff`, `manager`).
 
+### Component Diagram
+
+```
++------------------------------+
+| Browser (React SPA via Vite) |
++---------------+--------------+
+                |
+        HTTPS /api/* + JWT
+                |
++---------------v--------------+
+| Flask App (backend/app)      |
+| - create_app() factory       |
+| - Blueprints: auth, items,   |
+|   orders, schedules, analytics|
++---------------+--------------+
+                |
+        SQLAlchemy ORM Session
+                |
++---------------v--------------+
+| SQLite (data/app.db)         |
+| - Base.metadata migrations   |
+| - Seeded admin + menu stock  |
++------------------------------+
+                |
+       Docker volume ./data    
+```
+
+- Frontend SPA issues fetches against `/api/*`, attaching JWTs when authenticated.
+- Flask handles routing, authorization, and inventory logic before persisting through SQLAlchemy.
+- SQLite stores shared state; helper routines ensure schema upgrades and default records on startup.
+
+## Docker Compose Runtime Topology
+
+```
++------------------+    depends_on     +------------------+
+| web (frontend)   | ----------------> | api (backend)    |
+| build: ./frontend|                   | build: ./backend |
+| publishes :80    |                   | exposes :8000    |
++------------------+                   +---------+--------+
+                                                |
+                          bind mount ./data <---+
+                                                |
+                                    SQLite database file
+```
+
+- `web` container serves the compiled React bundle through Nginx at `http://localhost`.
+- `api` container runs the Flask app, reading `DATABASE_URL` and `JWT_SECRET` from environment.
+- Shared `./data` volume keeps `app.db` persistent across container rebuilds and host restarts.
+
 ## Backend Service (Flask API)
 ### Application startup
 - `backend/app/__init__.py` builds the Flask app, wires blueprints, and runs database migrations on launch.
@@ -118,4 +167,5 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 - Add new API routes within their respective blueprints (e.g., analytics enhancements in `backend/app/analytics.py`).
 - Keep the data model in sync with migration helpers inside `create_app()` when adding columns so existing SQLite databases are upgraded automatically.
 - Frontend pages expect JSON structures documented above; when API responses change, update fetch handling in `App.jsx` and the relevant component.
+
 
