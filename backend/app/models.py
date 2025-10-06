@@ -91,7 +91,9 @@ class OrderRecord(Base):
     completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
 
 
-SHIFT_NAMES = ("morning", "evening")
+SHIFT_START_HOUR = 10
+SHIFT_END_HOUR = 22  # exclusive end hour
+SHIFT_NAMES = tuple(f"{hour:02d}:00" for hour in range(SHIFT_START_HOUR, SHIFT_END_HOUR))
 
 
 class ScheduleShift(Base):

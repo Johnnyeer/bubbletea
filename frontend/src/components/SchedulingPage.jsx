@@ -1,11 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import SystemLayout from "./SystemLayout.jsx";
 import { cardStyle, inputStyle, primaryButtonStyle, secondaryButtonStyle } from "./styles.js";
 
-const SHIFT_SLOTS = [
-    { key: "morning", label: "First Shift", window: "10:00 AM - 4:00 PM" },
-    { key: "evening", label: "Second Shift", window: "4:00 PM - 10:00 PM" },
-];
+const SHIFT_START_HOUR = 10;
+const SHIFT_END_HOUR = 22; // exclusive end hour
+
+const formatTimeRange = (startHour, endHour) => {
+    const format = hour =>
+        new Date(0, 0, 0, hour)
+            .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+            .replace(":00", "");
+    return `${format(startHour)} - ${format(endHour)}`;
+};
+
+const SHIFT_SLOTS = Array.from({ length: SHIFT_END_HOUR - SHIFT_START_HOUR }, (_, index) => {
+    const startHour = SHIFT_START_HOUR + index;
+    const endHour = startHour + 1;
+    const key = `${String(startHour).padStart(2, "0")}:00`;
+    return {
+        key,
+        label: new Date(0, 0, 0, startHour).toLocaleTimeString([], { hour: "numeric" }),
+        window: formatTimeRange(startHour, endHour),
+    };
+});
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -128,51 +145,34 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         }
         loadShifts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isStaff, authToken]);
+    }, [isStaff, token]);
 
     const upcomingDays = useMemo(() => {
-        if (!isStaff) {
-            return [];
-        }
-        const todayStart = startOfDay(new Date());
-        const serverEnd = rangeEnd ? startOfDay(parseISODate(rangeEnd)) : null;
-        const totalDays = serverEnd
-            ? Math.max(7, Math.round((serverEnd.getTime() - todayStart.getTime()) / DAY_IN_MS) + 1)
-            : 7;
-
-        return Array.from({ length: totalDays }, (_, offset) => {
-            const day = new Date(todayStart);
-            day.setDate(todayStart.getDate() + offset);
+        const startDate = startOfDay(rangeStart ? parseISODate(rangeStart) : new Date());
+        return Array.from({ length: 7 }, (_, offset) => {
+            const current = new Date(startDate.getTime() + offset * DAY_IN_MS);
             return {
-                date: day,
-                iso: toLocalISODate(day),
-                label: formatDateLabel(day),
+                date: current,
+                iso: toLocalISODate(current),
+                label: formatDateLabel(current),
             };
         });
-    }, [isStaff, rangeEnd, rangeStart]);
-
-    const displayRangeStart = upcomingDays.length > 0 ? upcomingDays[0].iso : rangeStart;
-    const displayRangeEnd = upcomingDays.length > 0 ? upcomingDays[upcomingDays.length - 1].iso : rangeEnd;
+    }, [rangeStart]);
 
     const shiftLookup = useMemo(() => {
-        const map = new Map();
-        shifts.forEach(entry => {
-            const dateKey = entry.shift_date || entry.date;
-            const name = entry.shift_name;
-            if (!dateKey || !name) {
-                return;
+        const lookup = new Map();
+        for (const shift of shifts) {
+            const iso = shift.shift_date;
+            if (!lookup.has(iso)) {
+                lookup.set(iso, {});
             }
-            const bucket = map.get(dateKey) || {};
-            const listForShift = bucket[name] || [];
-            listForShift.push(entry);
-            listForShift.sort((a, b) => (a.staff_name || "").localeCompare(b.staff_name || ""));
-            bucket[name] = listForShift;
-            map.set(dateKey, bucket);
-        });
-        return map;
+            lookup.get(iso)[shift.shift_name] = lookup.get(iso)[shift.shift_name] || [];
+            lookup.get(iso)[shift.shift_name].push(shift);
+        }
+        return lookup;
     }, [shifts]);
 
-    const getAssignmentKey = (dateIso, shiftName) => `${dateIso}:${shiftName}`;
+    const getAssignmentKey = (isoDate, shiftKey) => `${isoDate}__${shiftKey}`;
 
     const handleAssignmentInputChange = (dateIso, shiftName, value) => {
         setAssignmentInputs(prev => ({ ...prev, [getAssignmentKey(dateIso, shiftName)]: value }));
@@ -258,18 +258,18 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         );
     }
 
+    const titleDescription = `Manage hourly shifts between ${SHIFT_SLOTS[0].window.split(" - ")[0]} and ${SHIFT_SLOTS[SHIFT_SLOTS.length - 1].window.split(" - ")[1]}.`;
+
     return (
         <SystemLayout system={system}>
             <section style={{ ...cardStyle, display: "grid", gap: 16 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                     <div>
                         <h2 style={{ margin: 0 }}>Upcoming Schedule</h2>
-                        <p style={{ margin: "6px 0 0 0", color: "#475569" }}>
-                            View and manage the first (10&nbsp;AM - 4&nbsp;PM) and second (4&nbsp;PM - 10&nbsp;PM) shifts.
-                        </p>
-                        {displayRangeStart && displayRangeEnd && (
+                        <p style={{ margin: "6px 0 0 0", color: "#475569" }}>{titleDescription}</p>
+                        {rangeStart && rangeEnd && (
                             <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: 14 }}>
-                                Showing {displayRangeStart} through {displayRangeEnd}.
+                                Showing {formatDateLabel(parseISODate(rangeStart))} through {formatDateLabel(parseISODate(rangeEnd))}.
                             </p>
                         )}
                     </div>
@@ -307,19 +307,21 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                                     gap: 16,
                                 }}
                             >
-                                <header>
+                                <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
                                     <h3 style={{ margin: 0 }}>{day.label}</h3>
-                                    <p style={{ margin: "4px 0 0 0", color: "#64748b" }}>{day.iso}</p>
+                                    <span style={{ color: "#64748b", fontSize: 14 }}>{day.iso}</span>
                                 </header>
 
-                                <div style={{ display: "grid", gap: 16 }}>
+                                <div style={{ display: "grid", gap: 12 }}>
                                     {SHIFT_SLOTS.map(slot => {
-                                        const entries = dayAssignments[slot.key] || [];
-                                        const viewerHasShift = entries.some(item => item.staff_id === viewerId);
+                                        const slotAssignments = dayAssignments[slot.key] || [];
+                                        const viewerHasShift = slotAssignments.some(item => item.staff_id === viewerId);
                                         const assignmentKey = getAssignmentKey(day.iso, slot.key);
                                         const inputValue = assignmentInputs[assignmentKey] ?? "";
                                         const claimDisabled = pendingKey === `claim-${day.iso}-${slot.key}`;
-
+                                        const removingShiftId = pendingKey?.startsWith("remove-")
+                                            ? Number(pendingKey.replace("remove-", ""))
+                                            : null;
                                         return (
                                             <section
                                                 key={slot.key}
@@ -328,40 +330,37 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                                                     borderRadius: 10,
                                                     padding: 12,
                                                     display: "grid",
-                                                    gap: 10,
+                                                    gap: 8,
                                                 }}
                                             >
-                                                <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                                                <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                                                     <div>
-                                                        <h4 style={{ margin: 0 }}>{slot.label}</h4>
-                                                        <p style={{ margin: "4px 0 0 0", color: "#64748b" }}>{slot.window}</p>
+                                                        <div style={{ fontWeight: 600 }}>{slot.label} Slot</div>
+                                                        <div style={{ color: "#64748b", fontSize: 13 }}>{slot.window}</div>
                                                     </div>
-                                                    <div style={{ color: "#1e3a8a", fontWeight: 600 }}>
-                                                        {formatShiftListLabel(entries)}
-                                                    </div>
-                                                </div>
+                                                    <div style={{ color: "#475569", fontSize: 13 }}>{formatShiftListLabel(slotAssignments)}</div>
+                                                </header>
 
-                                                {entries.length > 0 && (
-                                                    <ul style={{ margin: 0, paddingLeft: 18, color: "#475569", fontSize: 14 }}>
-                                                        {entries.map(item => {
-                                                            const removable = canManageAll || item.staff_id === viewerId;
-                                                            const removing = pendingKey === `remove-${item.id}`;
+                                                {slotAssignments.length > 0 && (
+                                                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+                                                        {slotAssignments.map(item => {
+                                                            const removing = removingShiftId === item.id;
                                                             return (
-                                                                <li key={item.id} style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>
-                                                                    <span>
-                                                                        {item.staff_name || `Staff #${item.staff_id}`} ({item.role || "staff"})
-                                                                    </span>
-                                                                    {removable && (
+                                                                <li key={item.id} style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                                                                    <div>
+                                                                        <div style={{ fontWeight: 600 }}>{item.staff_name || `Staff #${item.staff_id}`}</div>
+                                                                        <div style={{ color: "#64748b", fontSize: 13 }}>{item.role || "staff"}</div>
+                                                                    </div>
+                                                                    {(canManageAll || item.staff_id === viewerId) && (
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => handleRemoveShift(item)}
-                                                                            disabled={removing}
+                                                                            disabled={pendingKey === `remove-${item.id}`}
                                                                             style={{
                                                                                 ...secondaryButtonStyle,
                                                                                 padding: "4px 10px",
-                                                                                fontSize: 13,
-                                                                                opacity: removing ? 0.7 : 1,
-                                                                                cursor: removing ? "wait" : "pointer",
+                                                                                opacity: pendingKey === `remove-${item.id}` ? 0.7 : 1,
+                                                                                cursor: pendingKey === `remove-${item.id}` ? "wait" : "pointer",
                                                                             }}
                                                                         >
                                                                             {removing ? "Removing..." : "Remove"}

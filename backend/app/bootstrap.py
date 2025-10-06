@@ -1,4 +1,4 @@
-"""Database bootstrap utilities."""
+﻿"""Database bootstrap utilities."""
 from decimal import Decimal
 from sqlalchemy import inspect, select
 from werkzeug.security import generate_password_hash
@@ -6,7 +6,6 @@ from werkzeug.security import generate_password_hash
 from .db import SessionLocal, engine
 from .models import Base, Staff, OrderItem, OrderRecord, MenuItem, Member
 from .orders import _archive_order
-
 
 SEED_MENU_ITEMS = [
     {"name": "Green", "category": "tea", "price": Decimal("3.50"), "quantity": 100},
@@ -101,7 +100,7 @@ def _seed_member_accounts() -> None:
         session.commit()
 
 
-def _archive_completed_orders():
+def _archive_completed_orders() -> None:
     """Move lingering completed order_items into order_records."""
     with SessionLocal() as session:
         orders = session.scalars(select(OrderItem).where(OrderItem.status == "complete")).all()
@@ -112,9 +111,16 @@ def _archive_completed_orders():
         session.commit()
 
 
+def _reset_schedule_schema(connection) -> None:
+    inspector = inspect(connection)
+    if "schedule_shifts" in inspector.get_table_names():
+        connection.exec_driver_sql("DROP TABLE schedule_shifts")
+
+
 def bootstrap_database() -> None:
     """Create required tables and default records."""
     with engine.begin() as connection:
+        _reset_schedule_schema(connection)
         _migrate_staff_remove_email(connection)
         Base.metadata.create_all(connection)
     _ensure_menu_item_quantity_column()
