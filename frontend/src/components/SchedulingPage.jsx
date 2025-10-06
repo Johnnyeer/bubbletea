@@ -83,6 +83,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
     const [error, setError] = useState("");
     const [assignmentInputs, setAssignmentInputs] = useState({});
     const [pendingKey, setPendingKey] = useState(null);
+    const [staffOptions, setStaffOptions] = useState([]);
 
     const updateStatus = typeof onStatusMessage === "function" ? onStatusMessage : (msg => system?.onStatusMessage?.(msg));
 
@@ -113,12 +114,35 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         return false;
     };
 
+    const loadStaffOptions = async () => {
+        if (!canManageAll) {
+            setStaffOptions([]);
+            return;
+        }
+        try {
+            const response = await fetch("/api/scheduling/staff", { headers });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || "Unable to load staff roster");
+            }
+            const options = Array.isArray(data.staff) ? data.staff : [];
+            setStaffOptions(options);
+        } catch (err) {
+            const message = err.message || "Unable to load staff roster";
+            setStaffOptions([]);
+            updateStatus?.(message);
+        }
+    };
+
     const loadShifts = async () => {
         setIsLoading(true);
         setError("");
         try {
             const usedDashboard = await tryLoadViaDashboard();
             if (usedDashboard) {
+                if (canManageAll) {
+                    await loadStaffOptions();
+                }
                 return;
             }
             const response = await fetch("/api/scheduling", { headers });
@@ -130,6 +154,9 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
             setShifts(collection);
             setRangeStart(data.start_date || null);
             setRangeEnd(data.end_date || null);
+            if (canManageAll) {
+                await loadStaffOptions();
+            }
         } catch (err) {
             const message = err.message || "Unable to load schedule";
             setError(message);
@@ -146,6 +173,15 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         loadShifts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isStaff, token]);
+
+    useEffect(() => {
+        if (canManageAll && isStaff) {
+            loadStaffOptions();
+        } else {
+            setStaffOptions([]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [canManageAll, authToken]);
 
     const upcomingDays = useMemo(() => {
         const startDate = startOfDay(rangeStart ? parseISODate(rangeStart) : new Date());
@@ -376,25 +412,33 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                                                     {canManageAll ? (
                                                         <>
                                                             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                                <span style={{ fontWeight: 600 }}>Staff ID</span>
-                                                                <input
-                                                                    type="number"
-                                                                    min="1"
-                                                                    value={inputValue}
-                                                                    onChange={event => handleAssignmentInputChange(day.iso, slot.key, event.target.value)}
-                                                                    placeholder="Enter ID"
-                                                                    style={{ ...inputStyle, width: 120 }}
-                                                                />
+                                                                <span style={{ fontWeight: 600 }}>Staff</span>
+                                                                {staffOptions.length === 0 ? (
+                                                                    <span style={{ fontSize: 13, color: "#64748b" }}>No staff available</span>
+                                                                ) : (
+                                                                    <select
+                                                                        value={String(inputValue || "")}
+                                                                        onChange={event => handleAssignmentInputChange(day.iso, slot.key, event.target.value)}
+                                                                        style={{ ...inputStyle, width: 220 }}
+                                                                    >
+                                                                        <option value="">Select staff…</option>
+                                                                        {staffOptions.map(option => (
+                                                                            <option key={option.id} value={option.id}>
+                                                                                {option.full_name} (#{option.id})
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                )}
                                                             </label>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleClaimShift(day.iso, slot.key, inputValue)}
-                                                                disabled={claimDisabled}
+                                                                disabled={claimDisabled || staffOptions.length === 0}
                                                                 style={{
                                                                     ...primaryButtonStyle,
                                                                     padding: "6px 14px",
-                                                                    opacity: claimDisabled ? 0.7 : 1,
-                                                                    cursor: claimDisabled ? "wait" : "pointer",
+                                                                    opacity: claimDisabled || staffOptions.length === 0 ? 0.7 : 1,
+                                                                    cursor: claimDisabled || staffOptions.length === 0 ? "wait" : "pointer",
                                                                 }}
                                                             >
                                                                 {claimDisabled ? "Assigning..." : "Assign"}

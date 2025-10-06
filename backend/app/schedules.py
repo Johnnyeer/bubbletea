@@ -40,6 +40,29 @@ def _serialize_shift(shift: ScheduleShift, staff: Staff | None = None):
     }
 
 
+
+
+@bp.get("/staff")
+@role_required("manager", "admin")
+def list_staff():
+    with session_scope() as session:
+        staff_rows = session.execute(
+            select(Staff)
+            .where(Staff.is_active.is_(True))
+            .order_by(Staff.full_name, Staff.username)
+        ).scalars().all()
+        payload = [
+            {
+                "id": staff.id,
+                "username": staff.username,
+                "full_name": staff.full_name,
+                "role": staff.role,
+            }
+            for staff in staff_rows
+        ]
+    return jsonify({"staff": payload})
+
+
 @bp.get("")
 @role_required("staff", "manager")
 def list_shifts():
