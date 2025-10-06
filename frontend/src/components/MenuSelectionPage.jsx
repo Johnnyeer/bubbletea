@@ -61,17 +61,23 @@ const getDisplayLabel = item => {
 };
 
 const listStyle = {
-    listStyle: "disc",
-    paddingLeft: 20,
-    margin: "8px 0",
+    listStyle: "none",
+    paddingLeft: 0,
+    margin: "12px 0",
     display: "grid",
-    gap: 6,
+    gap: 10,
 };
 
 const listItemStyle = {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
+    padding: "10px 14px",
+    borderRadius: 18,
+    border: "1px solid var(--tea-border)",
+    background: "rgba(255, 255, 255, 0.72)",
+    boxShadow: "0 12px 28px -22px rgba(15, 23, 42, 0.45)",
+    flexWrap: "wrap",
 };
 
 export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
@@ -338,7 +344,7 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                     <div>
                         <h2 style={{ margin: 0 }}>Order Menu</h2>
-                        <p style={{ margin: "6px 0 0 0", color: "#4a5568" }}>Customize your drink and add it to the cart.</p>
+                        <p style={{ margin: "6px 0 0 0", color: "var(--tea-muted)" }}>Customize your drink and add it to the cart.</p>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                         <button type="button" onClick={() => navigate("/order")} style={secondaryButtonStyle}>Back</button>
@@ -499,7 +505,7 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
                             </button>
                         </div>
                         {extraCategories.length > 0 && (
-                            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 12, display: "grid", gap: 12 }}>
+                            <div style={{ borderTop: "1px solid var(--tea-border)", paddingTop: 12, display: "grid", gap: 12 }}>
                                 <h3 style={{ margin: "0" }}>More Menu Items</h3>
                                 {extraCategories.map(category => (
                                     <div key={category.key}>
@@ -536,3 +542,6 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
         </SystemLayout>
     );
 }
+
+
+

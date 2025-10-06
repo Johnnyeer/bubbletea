@@ -69,6 +69,68 @@ const renderOptions = item => {
     return parts.join(" | ");
 };
 
+const headerRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+    flexWrap: "wrap",
+};
+
+const headerTextStyle = {
+    margin: "6px 0 0 0",
+    color: "var(--tea-muted)",
+};
+
+const errorBannerStyle = {
+    border: "1px solid rgba(239, 68, 68, 0.32)",
+    background: "rgba(254, 226, 226, 0.78)",
+    borderRadius: 20,
+    padding: "14px 18px",
+    color: "#9f1239",
+    fontWeight: 600,
+};
+
+const orderCardStyle = {
+    border: "1px solid var(--tea-border-strong)",
+    borderRadius: 24,
+    padding: "18px 20px",
+    background: "var(--tea-surface)",
+    display: "grid",
+    gap: 10,
+    boxShadow: "0 14px 32px -26px rgba(15, 23, 42, 0.45)",
+};
+
+const orderMetaStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    gap: 16,
+    flexWrap: "wrap",
+};
+
+const orderInfoStyle = {
+    display: "flex",
+    gap: 16,
+    color: "var(--tea-muted)",
+    fontSize: 14,
+    flexWrap: "wrap",
+};
+
+const optionSummaryStyle = {
+    color: "rgba(15, 23, 42, 0.72)",
+    fontSize: 13,
+};
+
+const emptyStateStyle = {
+    border: "1px dashed rgba(192, 132, 252, 0.35)",
+    borderRadius: 20,
+    padding: "18px 20px",
+    background: "rgba(255, 255, 255, 0.72)",
+    color: "var(--tea-muted)",
+    textAlign: "center",
+};
+
 export default function PastOrdersPage({ system, session }) {
     const isAuthenticated = Boolean(session?.isAuthenticated);
     const token = session?.token || "";
@@ -128,7 +190,7 @@ export default function PastOrdersPage({ system, session }) {
     if (!isAuthenticated) {
         return (
             <SystemLayout system={system}>
-                <section style={{ ...cardStyle, display: "grid", gap: 12 }}>
+                <section style={{ ...cardStyle, display: "grid", gap: 16 }}>
                     <h2 style={{ margin: 0 }}>Past Orders</h2>
                     <p>Please sign in to view your order history.</p>
                 </section>
@@ -138,55 +200,58 @@ export default function PastOrdersPage({ system, session }) {
 
     return (
         <SystemLayout system={system}>
-            <section style={{ ...cardStyle, display: "grid", gap: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <section style={{ ...cardStyle, display: "grid", gap: 24 }}>
+                <div style={headerRowStyle}>
                     <div>
-                        <h2 style={{ margin: 0 }}>Past Orders</h2>
-                        <p style={{ margin: "6px 0 0 0", color: "#4a5568" }}>Review your previously completed drinks.</p>
+                        <h2 style={{ margin: 0, fontSize: 28 }}>Past Orders</h2>
+                        <p style={headerTextStyle}>Review your previously completed drinks.</p>
                     </div>
                     <button
                         type="button"
                         onClick={loadHistory}
-                        style={{ ...primaryButtonStyle, minWidth: 120, opacity: isLoading ? 0.85 : 1, cursor: isLoading ? "wait" : "pointer" }}
+                        style={{
+                            ...primaryButtonStyle,
+                            minWidth: 140,
+                            opacity: isLoading ? 0.75 : 1,
+                            cursor: isLoading ? "wait" : "pointer",
+                        }}
                         disabled={isLoading}
                     >
                         {isLoading ? "Loading..." : "Refresh"}
                     </button>
                 </div>
 
-                {error && (
-                    <div style={{ border: "1px solid #fca5a5", background: "#fee2e2", borderRadius: 8, padding: 12, color: "#991b1b" }}>{error}</div>
-                )}
+                {error && <div style={errorBannerStyle}>{error}</div>}
 
-                <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "grid", gap: 16 }}>
                     {orders.map(item => {
                         const optionSummary = renderOptions(item);
                         const createdLabel = item?.created_at ? formatDateTime(item.created_at) : null;
                         const completedLabel = item?.completed_at ? formatDateTime(item.completed_at) : null;
                         return (
-                            <div key={item.id} style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: 12, background: "#fff", display: "grid", gap: 6 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                                    <div style={{ fontWeight: 700 }}>#{item.id}{item.name ? ` - ${item.name}` : ""}</div>
+                            <div key={item.id} style={orderCardStyle}>
+                                <div style={orderMetaStyle}>
+                                    <div style={{ fontWeight: 700, fontSize: 18 }}>#{item.id}{item.name ? ` - ${item.name}` : ""}</div>
                                     <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
-                                        {item.quantity !== undefined && <span style={{ color: "#475569", fontSize: 14 }}>Qty: {item.quantity}</span>}
+                                        {item.quantity !== undefined && <span style={{ color: "var(--tea-muted)", fontSize: 14 }}>Qty: {item.quantity}</span>}
                                         {item.total_price !== undefined && <span style={{ fontWeight: 700 }}>{formatCurrency(item.total_price)}</span>}
                                     </div>
                                 </div>
-                                <div style={{ display: "flex", gap: 16, color: "#475569", fontSize: 14, flexWrap: "wrap" }}>
+                                <div style={orderInfoStyle}>
                                     <span>Status: {formatStatus(item.status || "complete")}</span>
                                     {createdLabel && <span>Ordered: {createdLabel}</span>}
                                     {completedLabel && <span>Completed: {completedLabel}</span>}
                                 </div>
-                                {optionSummary && <div style={{ color: "#64748b", fontSize: 13 }}>{optionSummary}</div>}
+                                {optionSummary && <div style={optionSummaryStyle}>{optionSummary}</div>}
                             </div>
                         );
                     })}
-                    {orders.length === 0 && !isLoading && (
-                        <div style={{ border: "1px dashed #cbd5e1", borderRadius: 8, padding: 16, background: "#f8fafc" }}>You have not completed any orders yet.</div>
-                    )}
+                    {orders.length === 0 && !isLoading && <div style={emptyStateStyle}>You have not completed any orders yet.</div>}
                 </div>
             </section>
         </SystemLayout>
     );
 }
+
+
 

@@ -37,6 +37,88 @@ const toTimestamp = value => {
     return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
 };
 
+const headerRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+    flexWrap: "wrap",
+};
+
+const headerTextStyle = {
+    margin: "6px 0 0 0",
+    color: "var(--tea-muted)",
+};
+
+const errorBannerStyle = {
+    border: "1px solid rgba(239, 68, 68, 0.32)",
+    background: "rgba(254, 226, 226, 0.78)",
+    borderRadius: 20,
+    padding: "14px 18px",
+    color: "#9f1239",
+    fontWeight: 600,
+};
+
+const orderCardStyle = {
+    border: "1px solid var(--tea-border-strong)",
+    borderRadius: 24,
+    padding: "18px 20px",
+    background: "var(--tea-surface)",
+    display: "grid",
+    gap: 10,
+    boxShadow: "0 14px 32px -26px rgba(15, 23, 42, 0.45)",
+};
+
+const orderMetaStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    gap: 16,
+    flexWrap: "wrap",
+};
+
+const orderDetailsStyle = {
+    display: "flex",
+    gap: 16,
+    color: "var(--tea-muted)",
+    fontSize: 14,
+    flexWrap: "wrap",
+};
+
+const orderNotesStyle = {
+    color: "rgba(15, 23, 42, 0.72)",
+    fontSize: 13,
+};
+
+const emptyStateStyle = {
+    border: "1px dashed rgba(34, 211, 238, 0.35)",
+    borderRadius: 20,
+    padding: "18px 20px",
+    background: "rgba(255, 255, 255, 0.72)",
+    color: "var(--tea-muted)",
+    textAlign: "center",
+};
+
+const getStatusButtonStyle = (isActive, isPending) => ({
+    ...secondaryButtonStyle,
+    padding: "8px 16px",
+    borderColor: isActive ? "rgba(249, 115, 22, 0.45)" : "rgba(15, 23, 42, 0.14)",
+    background: isActive ? "rgba(249, 115, 22, 0.18)" : "rgba(255, 255, 255, 0.72)",
+    color: isActive ? "#0f172a" : "#1f2937",
+    opacity: isPending ? 0.7 : 1,
+    cursor: isPending ? "wait" : "pointer",
+});
+
+const getDeleteButtonStyle = isPending => ({
+    ...secondaryButtonStyle,
+    padding: "8px 16px",
+    borderColor: "rgba(239, 68, 68, 0.32)",
+    background: "rgba(254, 202, 202, 0.72)",
+    color: "#b91c1c",
+    opacity: isPending ? 0.7 : 1,
+    cursor: isPending ? "wait" : "pointer",
+});
+
 export default function CurrentOrdersPage({ system, session }) {
     const userRole = typeof session?.user?.role === "string" ? session.user.role.toLowerCase() : "customer";
     const isStaff = userRole === "staff" || userRole === "manager";
@@ -141,7 +223,6 @@ export default function CurrentOrdersPage({ system, session }) {
         }
     };
 
-
     const handleDelete = async orderId => {
         const order = items.find(entry => entry.id === orderId);
         if (!order) {
@@ -194,94 +275,71 @@ export default function CurrentOrdersPage({ system, session }) {
 
     return (
         <SystemLayout system={system}>
-            <section style={{ ...cardStyle, display: "grid", gap: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <section style={{ ...cardStyle, display: "grid", gap: 24 }}>
+                <div style={headerRowStyle}>
                     <div>
-                        <h2 style={{ margin: 0 }}>Current Orders</h2>
-                        <p style={{ margin: "6px 0 0 0", color: "#4a5568" }}>Incoming items with their status.</p>
+                        <h2 style={{ margin: 0, fontSize: 28 }}>Current Orders</h2>
+                        <p style={headerTextStyle}>Incoming items with their status.</p>
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 10 }}>
                         <button type="button" onClick={loadOrders} style={primaryButtonStyle} disabled={isLoading}>
                             {isLoading ? "Refreshing..." : "Refresh"}
                         </button>
                     </div>
                 </div>
 
-                {error && (
-                    <div style={{ border: "1px solid #fca5a5", background: "#fee2e2", borderRadius: 8, padding: 12, color: "#991b1b" }}>{error}</div>
-                )}
+                {error && <div style={errorBannerStyle}>{error}</div>}
 
-                <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "grid", gap: 16 }}>
                     {items.map(item => {
                         const detailText = renderOrderDetails(item);
                         const isPendingUpdate = pendingUpdateId === item.id;
                         const isPendingDelete = pendingDeleteId === item.id;
                         const isPending = isPendingUpdate || isPendingDelete;
                         return (
-                            <div key={item.id} style={{ border: "1px solid #cbd5e1", borderRadius: 8, padding: 12, background: "#fff", display: "grid", gap: 6 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                                    <div style={{ fontWeight: 700 }}>#{item.id} {item.name ? `- ${item.name}` : ""}</div>
+                            <div key={item.id} style={orderCardStyle}>
+                                <div style={orderMetaStyle}>
+                                    <div style={{ fontWeight: 700, fontSize: 18 }}>#{item.id} {item.name ? `- ${item.name}` : ""}</div>
                                     {item.total_price !== undefined && <div style={{ fontWeight: 700 }}>{formatCurrency(item.total_price)}</div>}
                                 </div>
-                                <div style={{ display: "flex", gap: 16, color: "#475569", fontSize: 14, flexWrap: "wrap" }}>
+                                <div style={orderDetailsStyle}>
                                     {item.status && <span>Status: {formatStatus(item.status)}</span>}
                                     {item.created_at && <span>Placed: {formatDateTime(item.created_at)}</span>}
                                     {item.member_name && <span>Member: {item.member_name}</span>}
                                 </div>
-                                {detailText && (
-                                    <div style={{ color: "#64748b", fontSize: 13 }}>{detailText}</div>
-                                )}
-                                {isStaff && (
-                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                        {ORDER_STATUSES.map(status => {
-                                            const isActive = item.status === status;
-                                            const statusButtonStyle = {
-                                                ...secondaryButtonStyle,
-                                                padding: "6px 12px",
-                                                borderColor: isActive ? "#2563eb" : "#cbd5e1",
-                                                background: isActive ? "#dbeafe" : "#f8fafc",
-                                                color: isActive ? "#1e3a8a" : "#1f2937",
-                                                opacity: isPending ? 0.7 : 1,
-                                                cursor: isPending ? "wait" : "pointer",
-                                            };
-                                            return (
-                                                <button
-                                                    key={status}
-                                                    type="button"
-                                                    onClick={() => handleStatusUpdate(item.id, status)}
-                                                    disabled={isPending || isActive}
-                                                    style={statusButtonStyle}
-                                                >
-                                                    {formatStatus(status)}
-                                                </button>
-                                            );
-                                        })}
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDelete(item.id)}
-                                            disabled={isPending}
-                                            style={{
-                                                ...secondaryButtonStyle,
-                                                padding: "6px 12px",
-                                                borderColor: "#dc2626",
-                                                background: "#fee2e2",
-                                                color: "#991b1b",
-                                                opacity: isPending ? 0.7 : 1,
-                                                cursor: isPending ? "wait" : "pointer",
-                                            }}
-                                        >
-                                            {isPendingDelete ? "Deleting..." : "Delete"}
-                                        </button>
-                                    </div>
-                                )}
+                                {detailText && <div style={orderNotesStyle}>{detailText}</div>}
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    {ORDER_STATUSES.map(status => {
+                                        const isActive = item.status === status;
+                                        return (
+                                            <button
+                                                key={status}
+                                                type="button"
+                                                onClick={() => handleStatusUpdate(item.id, status)}
+                                                disabled={isPending || isActive}
+                                                style={getStatusButtonStyle(isActive, isPending)}
+                                            >
+                                                {formatStatus(status)}
+                                            </button>
+                                        );
+                                    })}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDelete(item.id)}
+                                        disabled={isPending}
+                                        style={getDeleteButtonStyle(isPending)}
+                                    >
+                                        {isPendingDelete ? "Deleting..." : "Delete"}
+                                    </button>
+                                </div>
                             </div>
                         );
                     })}
-                    {items.length === 0 && !isLoading && (
-                        <div style={{ border: "1px dashed #cbd5e1", borderRadius: 8, padding: 16, background: "#f8fafc" }}>No current orders.</div>
-                    )}
+                    {items.length === 0 && !isLoading && <div style={emptyStateStyle}>No current orders.</div>}
                 </div>
             </section>
         </SystemLayout>
     );
 }
+
+

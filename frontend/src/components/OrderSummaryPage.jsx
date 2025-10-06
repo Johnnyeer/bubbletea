@@ -19,31 +19,85 @@ const formatDateTime = value => {
     }
 };
 
+const headerRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+    flexWrap: "wrap",
+};
+
+const emptyStateStyle = {
+    border: "1px dashed rgba(192, 132, 252, 0.35)",
+    borderRadius: 20,
+    padding: "18px 20px",
+    background: "rgba(255, 255, 255, 0.72)",
+    color: "var(--tea-muted)",
+    textAlign: "center",
+};
+
+const orderItemStyle = {
+    display: "grid",
+    gap: 8,
+    border: "1px solid var(--tea-border-strong)",
+    borderRadius: 24,
+    padding: "16px 20px",
+    background: "var(--tea-surface)",
+    boxShadow: "0 14px 32px -26px rgba(15, 23, 42, 0.45)",
+};
+
+const metaRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    gap: 16,
+    flexWrap: "wrap",
+};
+
+const detailRowStyle = {
+    display: "flex",
+    gap: 12,
+    color: "var(--tea-muted)",
+    fontSize: 13,
+    flexWrap: "wrap",
+};
+
 export default function OrderSummaryPage({ system, orderItems = [], navigate, onRefresh, isRefreshing }) {
     const hasItems = Array.isArray(orderItems) && orderItems.length > 0;
 
     return (
         <SystemLayout system={system}>
-            <section style={{ ...cardStyle, display: "grid", gap: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <section style={{ ...cardStyle, display: "grid", gap: 24 }}>
+                <div style={headerRowStyle}>
                     <div>
-                        <h2 style={{ margin: 0 }}>Order Summary</h2>
-                        <p style={{ margin: "6px 0 0 0", color: "#4a5568" }}>Thanks for your order! Track the status below.</p>
+                        <h2 style={{ margin: 0, fontSize: 28 }}>Order Summary</h2>
+                        <p style={{ margin: "6px 0 0 0", color: "var(--tea-muted)" }}>
+                            Thanks for your order! Track brew status and pickup details below.
+                        </p>
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                        <button type="button" onClick={() => navigate("/menu")} style={secondaryButtonStyle}>Order More</button>
-                        <button type="button" onClick={onRefresh} disabled={isRefreshing} style={{ ...primaryButtonStyle, opacity: isRefreshing ? 0.7 : 1, cursor: isRefreshing ? "wait" : "pointer" }}>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <button type="button" onClick={() => navigate("/menu")} style={secondaryButtonStyle}>
+                            Order More
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onRefresh}
+                            disabled={isRefreshing}
+                            style={{
+                                ...primaryButtonStyle,
+                                opacity: isRefreshing ? 0.75 : 1,
+                                cursor: isRefreshing ? "wait" : "pointer",
+                            }}
+                        >
                             {isRefreshing ? "Refreshing..." : "Refresh Status"}
                         </button>
                     </div>
                 </div>
 
                 {!hasItems ? (
-                    <div style={{ border: "1px dashed #cbd5e1", borderRadius: 8, padding: 16, background: "#f8fafc" }}>
-                        No recent order items to display.
-                    </div>
+                    <div style={emptyStateStyle}>No recent order items to display.</div>
                 ) : (
-                    <div style={{ display: "grid", gap: 12 }}>
+                    <div style={{ display: "grid", gap: 16 }}>
                         {orderItems.map((item, index) => {
                             if (!item || typeof item !== "object") {
                                 return null;
@@ -83,21 +137,21 @@ export default function OrderSummaryPage({ system, orderItems = [], navigate, on
                             const itemId = item?.id ?? `order-${index}`;
 
                             return (
-                                <div key={itemId} style={{ display: "grid", gap: 6, border: "1px solid #cbd5e1", borderRadius: 8, padding: 12, background: "#fff" }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                                        <div style={{ fontWeight: 700 }}>#{item?.id ?? ""}</div>
+                                <div key={itemId} style={orderItemStyle}>
+                                    <div style={metaRowStyle}>
+                                        <div style={{ fontWeight: 700, fontSize: 18 }}>#{item?.id ?? ""}</div>
                                         {item?.total_price !== undefined && (
                                             <div style={{ fontWeight: 700 }}>{formatCurrency(item.total_price)}</div>
                                         )}
                                     </div>
-                                    {item?.name && <div style={{ color: "#334155" }}>{item.name}</div>}
-                                    <div style={{ display: "flex", gap: 12, color: "#64748b", fontSize: 13, flexWrap: "wrap" }}>
+                                    {item?.name && <div style={{ color: "#0f172a", fontWeight: 600 }}>{item.name}</div>}
+                                    <div style={detailRowStyle}>
                                         <span>Milk: {milkLabel || "None"}</span>
                                         <span>Sugar: {sugarLabel || "N/A"}</span>
                                         <span>Ice: {iceLabel || "N/A"}</span>
                                         <span>Add-ons: {addonLabels.length > 0 ? addonLabels.join(", ") : "None"}</span>
                                     </div>
-                                    <div style={{ display: "flex", gap: 16, color: "#475569", fontSize: 14, flexWrap: "wrap" }}>
+                                    <div style={{ ...detailRowStyle, fontSize: 14 }}>
                                         {item?.status && <span>Status: {String(item.status)}</span>}
                                         {item?.created_at && <span>Placed: {formatDateTime(item.created_at)}</span>}
                                     </div>

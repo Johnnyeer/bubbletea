@@ -1,50 +1,64 @@
+const commonShadow = "0 22px 40px -24px rgba(15, 23, 42, 0.55)";
+
 export const cardStyle = {
-    background: "#f5f5f5",
-    borderRadius: 8,
-    padding: 16,
-    border: "1px solid #d0d0d0",
+    background: "var(--tea-surface-strong)",
+    borderRadius: 24,
+    padding: "clamp(20px, 3vw, 32px)",
+    border: "1px solid var(--tea-border-strong)",
+    boxShadow: commonShadow,
+    backdropFilter: "blur(20px)",
 };
 
 export const inputStyle = {
     width: "100%",
-    marginTop: 4,
-    padding: "6px 8px",
-    borderRadius: 4,
-    border: "1px solid #999",
+    marginTop: 6,
+    padding: "12px 14px",
+    borderRadius: 16,
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255, 255, 255, 0.9)",
+    boxShadow: "inset 0 1px 2px rgba(15, 23, 42, 0.08)",
+    fontSize: "1rem",
 };
 
 export const labelStyle = {
     display: "block",
     marginTop: 12,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: "#0f172a",
 };
 
 export const primaryButtonStyle = {
-    border: "1px solid #1d4ed8",
-    background: "#1d4ed8",
-    color: "#fff",
-    padding: "6px 16px",
-    borderRadius: 4,
+    border: "1px solid transparent",
+    background: "linear-gradient(135deg, var(--tea-primary), var(--tea-secondary))",
+    color: "#ffffff",
+    padding: "12px 24px",
+    borderRadius: 999,
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: 700,
+    letterSpacing: "0.01em",
+    boxShadow: "0 18px 36px -22px rgba(249, 115, 22, 0.68)",
 };
 
 export const secondaryButtonStyle = {
-    border: "1px solid #0f172a",
-    background: "#e2e8f0",
+    border: "1px solid rgba(15, 23, 42, 0.12)",
+    background: "rgba(255, 255, 255, 0.72)",
     color: "#0f172a",
-    padding: "6px 16px",
-    borderRadius: 4,
+    padding: "12px 22px",
+    borderRadius: 999,
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: 600,
+    letterSpacing: "0.01em",
+    boxShadow: "0 14px 28px -22px rgba(15, 23, 42, 0.45)",
 };
 
 export const pillButtonStyle = {
-    border: "1px solid #2563eb",
-    background: "#bfdbfe",
+    border: "1px solid rgba(37, 99, 235, 0.22)",
+    background: "linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(221, 214, 254, 0.9))",
     color: "#1e3a8a",
-    padding: "6px 16px",
+    padding: "10px 20px",
     borderRadius: 999,
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: 600,
+    letterSpacing: "0.01em",
+    boxShadow: "0 12px 26px -20px rgba(37, 99, 235, 0.55)",
 };

@@ -6,10 +6,10 @@ const EMPTY_ACCOUNT = { full_name: "", username: "", password: "", role: "staff"
 const DEFAULT_ADJUSTMENT = "1";
 const tableWrapperStyle = { overflowX: "auto" };
 const tableStyle = { width: "100%", borderCollapse: "collapse", marginTop: 12 };
-const headerCellStyle = { textAlign: "left", padding: "8px 4px", borderBottom: "1px solid #d0d0d0" };
-const cellStyle = { padding: "8px 4px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" };
+const headerCellStyle = { textAlign: "left", padding: "10px 6px", borderBottom: "1px solid var(--tea-border-strong)", color: "#0f172a", fontWeight: 600 };
+const cellStyle = { padding: "10px 6px", borderBottom: "1px solid var(--tea-border)", verticalAlign: "top", color: "rgba(15, 23, 42, 0.78)" };
 const errorTextStyle = { color: "#b91c1c", fontWeight: "bold", marginTop: 8 };
-const helperTextStyle = { fontSize: "0.9rem", color: "#475569" };
+const helperTextStyle = { fontSize: "0.9rem", color: "rgba(15, 23, 42, 0.72)" };
 
 const ITEM_CATEGORY_OPTIONS = [
     { value: "tea", label: "Tea" },
@@ -621,3 +621,4 @@ export default function AdminPage({
         </SystemLayout>
     );
 }
+

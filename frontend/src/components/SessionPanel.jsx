@@ -50,3 +50,4 @@ export default function SessionPanel({ isAuthenticated, user, onLoadDashboard, d
         </section>
     );
 }
+

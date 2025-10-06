@@ -71,12 +71,12 @@ export default function OrderPage({
                                 gap: 8,
                                 textAlign: 'center',
                                 padding: '12px',
-                                background: '#f8fafc',
+                                background: 'rgba(255, 255, 255, 0.72)',
                                 borderRadius: 12,
                                 border: '1px dashed #cbd5f5',
                             }}
                         >
-                            <p style={{ margin: 0, color: '#4a5568', fontSize: 15 }}>Not a member?</p>
+                            <p style={{ margin: 0, color: 'var(--tea-muted)', fontSize: 15 }}>Not a member?</p>
                             <button
                                 type="button"
                                 onClick={() => navigate('/register')}
@@ -88,7 +88,7 @@ export default function OrderPage({
                             >
                                 Join our FREE membership
                             </button>
-                            <p style={{ margin: 0, color: '#4a5568', fontSize: 14 }}>
+                            <p style={{ margin: 0, color: 'var(--tea-muted)', fontSize: 14 }}>
                                 Unlock exclusive deals and discounts.
                             </p>
                         </div>
@@ -101,7 +101,7 @@ export default function OrderPage({
                             }}
                         >
                             <h3 style={{ margin: 0, fontSize: 24 }}>Continue as guest</h3>
-                            <p style={{ margin: 0, color: '#4a5568' }}>
+                            <p style={{ margin: 0, color: 'var(--tea-muted)' }}>
                                 Skip the sign-in and start building your order right away.
                             </p>
                             <button
@@ -121,4 +121,5 @@ export default function OrderPage({
         </div>
     );
 }
+
 

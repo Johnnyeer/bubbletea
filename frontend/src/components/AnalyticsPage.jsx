@@ -3,20 +3,21 @@ import SystemLayout from "./SystemLayout.jsx";
 import { cardStyle, primaryButtonStyle } from "./styles.js";
 
 const statBoxStyle = {
-    background: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 8,
-    padding: 16,
+    background: "var(--tea-surface)",
+    border: "1px solid var(--tea-border-strong)",
+    borderRadius: 24,
+    padding: "18px 20px",
     display: "grid",
-    gap: 6,
+    gap: 8,
+    boxShadow: "0 16px 36px -28px rgba(15, 23, 42, 0.45)",
 };
 
 const tableWrapperStyle = { overflowX: "auto" };
 const tableStyle = { width: "100%", borderCollapse: "collapse", marginTop: 8 };
-const headerCellStyle = { textAlign: "left", padding: "8px 4px", borderBottom: "1px solid #cbd5e1", fontWeight: "bold" };
-const cellStyle = { padding: "8px 4px", borderBottom: "1px solid #e2e8f0", verticalAlign: "top" };
-const errorBoxStyle = { border: "1px solid #fca5a5", background: "#fee2e2", borderRadius: 8, padding: 12, color: "#991b1b" };
-const infoTextStyle = { color: "#475569", fontSize: 14 };
+const headerCellStyle = { textAlign: "left", padding: "10px 4px", borderBottom: "1px solid var(--tea-border-strong)", fontWeight: 700, color: "#0f172a" };
+const cellStyle = { padding: "10px 4px", borderBottom: "1px solid var(--tea-border)", verticalAlign: "top", color: "rgba(15, 23, 42, 0.78)" };
+const errorBoxStyle = { border: "1px solid rgba(239, 68, 68, 0.32)", background: "rgba(254, 226, 226, 0.78)", borderRadius: 20, padding: "14px 18px", color: "#9f1239", fontWeight: 600 };
+const infoTextStyle = { color: "rgba(15, 23, 42, 0.72)", fontSize: 14 };
 
 const formatNumber = value => {
     const amount = Number(value || 0);
@@ -79,7 +80,7 @@ const PopularLine = ({ label, entry }) => {
     if (!entry) {
         return (
             <div>
-                {label}: <span style={{ color: "#64748b" }}>No data yet</span>
+                {label}: <span style={{ color: "var(--tea-muted)" }}>No data yet</span>
             </div>
         );
     }
@@ -167,7 +168,7 @@ export default function AnalyticsPage({ system, session }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                     <div>
                         <h2 style={{ margin: 0 }}>Sales Analytics</h2>
-                        <p style={{ margin: "6px 0 0 0", color: "#4a5568" }}>Overview based on completed orders.</p>
+                        <p style={{ margin: "6px 0 0 0", color: "var(--tea-muted)" }}>Overview based on completed orders.</p>
                     </div>
                     <div>
                         <button type="button" onClick={loadAnalytics} style={{ ...primaryButtonStyle, opacity: isLoading ? 0.7 : 1 }} disabled={isLoading}>
@@ -184,7 +185,7 @@ export default function AnalyticsPage({ system, session }) {
                     <span style={infoTextStyle}>Items still in the live queue.</span>
                 </div>
 
-                <div style={{ ...statBoxStyle, background: "#f8fafc" }}>
+                <div style={{ ...statBoxStyle, background: "rgba(255, 255, 255, 0.72)" }}>
                     <h3 style={{ margin: 0 }}>Most popular options</h3>
                     <div style={{ ...infoTextStyle, marginTop: 4 }}>
                         <PopularLine label="Tea" entry={popular.tea} />
@@ -206,7 +207,7 @@ export default function AnalyticsPage({ system, session }) {
                 <div>
                     <h3 style={{ margin: "8px 0" }}>Items sold</h3>
                     {itemsSold.length === 0 ? (
-                        <div style={{ border: "1px dashed #cbd5e1", borderRadius: 8, padding: 16, background: "#f8fafc", color: "#475569" }}>
+                        <div style={{ border: "1px dashed #cbd5e1", borderRadius: 8, padding: 16, background: "rgba(255, 255, 255, 0.72)", color: "rgba(15, 23, 42, 0.72)" }}>
                             No completed orders recorded yet.
                         </div>
                     ) : (
@@ -241,3 +242,4 @@ export default function AnalyticsPage({ system, session }) {
         </SystemLayout>
     );
 }
+

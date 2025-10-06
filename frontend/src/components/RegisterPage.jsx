@@ -113,7 +113,7 @@ export default function RegisterPage({ navigate }) {
                     <section style={{ ...cardStyle, display: "grid", gap: 16 }}>
                         <div>
                             <h3 style={{ margin: 0, fontSize: 24 }}>Create your account</h3>
-                            <p style={{ margin: "8px 0 0 0", color: "#4a5568", fontSize: 15 }}>
+                            <p style={{ margin: "8px 0 0 0", color: "var(--tea-muted)", fontSize: 15 }}>
                                 We just need a few details to set things up.
                             </p>
                         </div>
@@ -185,3 +185,4 @@ export default function RegisterPage({ navigate }) {
         </div>
     );
 }
+

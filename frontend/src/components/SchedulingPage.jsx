@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SystemLayout from "./SystemLayout.jsx";
 import { cardStyle, inputStyle, primaryButtonStyle, secondaryButtonStyle } from "./styles.js";
 
@@ -302,9 +302,9 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                     <div>
                         <h2 style={{ margin: 0 }}>Upcoming Schedule</h2>
-                        <p style={{ margin: "6px 0 0 0", color: "#475569" }}>{titleDescription}</p>
+                        <p style={{ margin: "6px 0 0 0", color: "rgba(15, 23, 42, 0.72)" }}>{titleDescription}</p>
                         {rangeStart && rangeEnd && (
-                            <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: 14 }}>
+                            <p style={{ margin: "4px 0 0 0", color: "var(--tea-muted)", fontSize: 14 }}>
                                 Showing {formatDateLabel(parseISODate(rangeStart))} through {formatDateLabel(parseISODate(rangeEnd))}.
                             </p>
                         )}
@@ -345,7 +345,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                             >
                                 <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
                                     <h3 style={{ margin: 0 }}>{day.label}</h3>
-                                    <span style={{ color: "#64748b", fontSize: 14 }}>{day.iso}</span>
+                                    <span style={{ color: "var(--tea-muted)", fontSize: 14 }}>{day.iso}</span>
                                 </header>
 
                                 <div style={{ display: "grid", gap: 12 }}>
@@ -372,9 +372,9 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                                                 <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                                                     <div>
                                                         <div style={{ fontWeight: 600 }}>{slot.label} Slot</div>
-                                                        <div style={{ color: "#64748b", fontSize: 13 }}>{slot.window}</div>
+                                                        <div style={{ color: "var(--tea-muted)", fontSize: 13 }}>{slot.window}</div>
                                                     </div>
-                                                    <div style={{ color: "#475569", fontSize: 13 }}>{formatShiftListLabel(slotAssignments)}</div>
+                                                    <div style={{ color: "rgba(15, 23, 42, 0.72)", fontSize: 13 }}>{formatShiftListLabel(slotAssignments)}</div>
                                                 </header>
 
                                                 {slotAssignments.length > 0 && (
@@ -385,7 +385,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                                                                 <li key={item.id} style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
                                                                     <div>
                                                                         <div style={{ fontWeight: 600 }}>{item.staff_name || `Staff #${item.staff_id}`}</div>
-                                                                        <div style={{ color: "#64748b", fontSize: 13 }}>{item.role || "staff"}</div>
+                                                                        <div style={{ color: "var(--tea-muted)", fontSize: 13 }}>{item.role || "staff"}</div>
                                                                     </div>
                                                                     {(canManageAll || item.staff_id === viewerId) && (
                                                                         <button
@@ -414,14 +414,14 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                                                             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                                                 <span style={{ fontWeight: 600 }}>Staff</span>
                                                                 {staffOptions.length === 0 ? (
-                                                                    <span style={{ fontSize: 13, color: "#64748b" }}>No staff available</span>
+                                                                    <span style={{ fontSize: 13, color: "var(--tea-muted)" }}>No staff available</span>
                                                                 ) : (
                                                                     <select
                                                                         value={String(inputValue || "")}
                                                                         onChange={event => handleAssignmentInputChange(day.iso, slot.key, event.target.value)}
                                                                         style={{ ...inputStyle, width: 220 }}
                                                                     >
-                                                                        <option value="">Select staff…</option>
+                                                                        <option value="">Select staff�</option>
                                                                         {staffOptions.map(option => (
                                                                             <option key={option.id} value={option.id}>
                                                                                 {option.full_name} (#{option.id})
@@ -485,3 +485,4 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         </SystemLayout>
     );
 }
+
