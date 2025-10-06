@@ -54,6 +54,14 @@ const renderOptions = item => {
     if (milk && milk !== "None") {
         parts.push(`Milk: ${milk}`);
     }
+    const sugar = item?.options?.sugar;
+    if (sugar) {
+        parts.push(`Sugar: ${sugar}`);
+    }
+    const ice = item?.options?.ice;
+    if (ice) {
+        parts.push(`Ice: ${ice}`);
+    }
     const addons = Array.isArray(item?.options?.addons) ? item.options.addons : [];
     if (addons.length > 0) {
         parts.push(`Add-ons: ${addons.join(", ")}`);
@@ -181,3 +189,4 @@ export default function PastOrdersPage({ system, session }) {
         </SystemLayout>
     );
 }
+

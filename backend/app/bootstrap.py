@@ -1,9 +1,115 @@
 """Database bootstrap utilities."""
+from decimal import Decimal
 from sqlalchemy import inspect, select
 from werkzeug.security import generate_password_hash
 
 from .db import SessionLocal, engine
-from .models import Base, Staff
+from .models import Base, Staff, OrderItem, OrderRecord, MenuItem, Member
+from .orders import _archive_order
+
+
+SEED_MENU_ITEMS = [
+    {"name": "Green", "category": "tea", "price": Decimal("3.50"), "quantity": 100},
+    {"name": "Black", "category": "tea", "price": Decimal("3.25"), "quantity": 100},
+    {"name": "Oolong", "category": "tea", "price": Decimal("3.75"), "quantity": 100},
+    {"name": "Evaporated Milk", "category": "milk", "price": Decimal("0.60"), "quantity": 100},
+    {"name": "Fresh Milk", "category": "milk", "price": Decimal("0.70"), "quantity": 100},
+    {"name": "Oat Milk", "category": "milk", "price": Decimal("0.80"), "quantity": 100},
+    {"name": "Tapioca Pearls", "category": "addon", "price": Decimal("0.50"), "quantity": 200},
+    {"name": "Taro Balls", "category": "addon", "price": Decimal("0.55"), "quantity": 200},
+    {"name": "Pudding", "category": "addon", "price": Decimal("0.45"), "quantity": 200},
+]
+
+SEED_STAFF_ACCOUNTS = [
+    {"username": "staff1", "full_name": "Staff One", "role": "staff"},
+    {"username": "staff2", "full_name": "Staff Two", "role": "staff"},
+    {"username": "staff3", "full_name": "Staff Three", "role": "staff"},
+]
+
+SEED_MEMBER_ACCOUNTS = [
+    {"email": "member1@example.com", "full_name": "Member One"},
+    {"email": "member2@example.com", "full_name": "Member Two"},
+    {"email": "member3@example.com", "full_name": "Member Three"},
+]
+
+
+def _seed_menu_items() -> None:
+    with SessionLocal() as session:
+        changed = False
+        for seed in SEED_MENU_ITEMS:
+            existing = session.scalar(
+                select(MenuItem)
+                .where(MenuItem.name == seed["name"])
+                .where(MenuItem.category == seed["category"])
+            )
+            if existing:
+                updated = False
+                current_price = Decimal(str(existing.price)) if existing.price is not None else None
+                if current_price != seed["price"]:
+                    existing.price = seed["price"]
+                    updated = True
+                if existing.quantity is None or existing.quantity < seed["quantity"]:
+                    existing.quantity = seed["quantity"]
+                    updated = True
+                if existing.is_active is False:
+                    existing.is_active = True
+                    updated = True
+                if updated:
+                    changed = True
+                continue
+            item = MenuItem(
+                name=seed["name"],
+                category=seed["category"],
+                price=seed["price"],
+                quantity=seed["quantity"],
+                is_active=True,
+            )
+            session.add(item)
+            changed = True
+        if changed:
+            session.commit()
+
+
+def _seed_staff_accounts() -> None:
+    with SessionLocal() as session:
+        for seed in SEED_STAFF_ACCOUNTS:
+            existing = session.scalar(select(Staff).where(Staff.username == seed["username"]))
+            if existing:
+                continue
+            staff = Staff(
+                username=seed["username"],
+                password_hash=generate_password_hash("admin"),
+                full_name=seed["full_name"],
+                role=seed.get("role", "staff"),
+            )
+            session.add(staff)
+        session.commit()
+
+
+def _seed_member_accounts() -> None:
+    with SessionLocal() as session:
+        for seed in SEED_MEMBER_ACCOUNTS:
+            existing = session.scalar(select(Member).where(Member.email == seed["email"]))
+            if existing:
+                continue
+            member = Member(
+                email=seed["email"],
+                password_hash=generate_password_hash("admin"),
+                full_name=seed["full_name"],
+            )
+            session.add(member)
+        session.commit()
+
+
+def _archive_completed_orders():
+    """Move lingering completed order_items into order_records."""
+    with SessionLocal() as session:
+        orders = session.scalars(select(OrderItem).where(OrderItem.status == "complete")).all()
+        if not orders:
+            return
+        for order in orders:
+            _archive_order(session, order, account_type=None, account_id=None)
+        session.commit()
 
 
 def bootstrap_database() -> None:
@@ -12,7 +118,11 @@ def bootstrap_database() -> None:
         _migrate_staff_remove_email(connection)
         Base.metadata.create_all(connection)
     _ensure_menu_item_quantity_column()
+    _seed_menu_items()
+    _archive_completed_orders()
     _ensure_default_admin()
+    _seed_staff_accounts()
+    _seed_member_accounts()
 
 
 def _migrate_staff_remove_email(connection) -> None:

@@ -64,7 +64,22 @@ export default function OrderSummaryPage({ system, orderItems = [], navigate, on
                                       .map(label => (typeof label === "string" ? label.trim() : String(label)))
                                       .filter(Boolean)
                                 : [];
-
+                            const sugarLabel = (() => {
+                                const raw = options?.sugar;
+                                if (typeof raw === "string") {
+                                    const trimmed = raw.trim();
+                                    return trimmed || "";
+                                }
+                                return raw != null ? String(raw) : "";
+                            })();
+                            const iceLabel = (() => {
+                                const raw = options?.ice;
+                                if (typeof raw === "string") {
+                                    const trimmed = raw.trim();
+                                    return trimmed || "";
+                                }
+                                return raw != null ? String(raw) : "";
+                            })();
                             const itemId = item?.id ?? `order-${index}`;
 
                             return (
@@ -78,6 +93,8 @@ export default function OrderSummaryPage({ system, orderItems = [], navigate, on
                                     {item?.name && <div style={{ color: "#334155" }}>{item.name}</div>}
                                     <div style={{ display: "flex", gap: 12, color: "#64748b", fontSize: 13, flexWrap: "wrap" }}>
                                         <span>Milk: {milkLabel || "None"}</span>
+                                        <span>Sugar: {sugarLabel || "N/A"}</span>
+                                        <span>Ice: {iceLabel || "N/A"}</span>
                                         <span>Add-ons: {addonLabels.length > 0 ? addonLabels.join(", ") : "None"}</span>
                                     </div>
                                     <div style={{ display: "flex", gap: 16, color: "#475569", fontSize: 14, flexWrap: "wrap" }}>
@@ -93,3 +110,4 @@ export default function OrderSummaryPage({ system, orderItems = [], navigate, on
         </SystemLayout>
     );
 }
+

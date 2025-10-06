@@ -11,6 +11,52 @@ from sqlalchemy import select
 from .auth import _json_error, _parse_identity, session_scope
 from .customizations import deserialize_customizations, extract_inventory_reservations, normalize_customizations
 from .models import Member, MenuItem, OrderItem, OrderRecord, ORDER_STATES
+ACTIVE_ORDER_STATES = ("received", "preparing")
+
+
+def _archive_order(
+    session,
+    order: OrderItem,
+    *,
+    account_type: str | None = None,
+    account_id: int | None = None,
+) -> dict:
+    """Persist a completed order record and remove the active order item."""
+    menu_item = session.get(MenuItem, order.item_id)
+    member = session.get(Member, order.member_id) if order.member_id else None
+    staff_id = order.staff_id
+    if account_type == "staff" and account_id:
+        staff_id = account_id
+
+    completed_at = current_local_datetime()
+
+    existing_record = session.scalar(
+        select(OrderRecord).where(OrderRecord.order_item_id == order.id)
+    )
+
+    if existing_record:
+        record = existing_record
+    else:
+        record = OrderRecord(order_item_id=order.id)
+        session.add(record)
+
+    record.member_id = order.member_id
+    record.staff_id = staff_id
+    record.item_id = order.item_id
+    record.qty = order.qty
+    record.status = "complete"
+    record.total_price = order.total_price
+    record.created_at = order.created_at
+    record.completed_at = record.completed_at or completed_at
+    record.customizations = order.customizations
+
+    session.flush()
+    session.delete(order)
+    session.flush()
+
+    return _serialize_completed_record(record, menu_item, member)
+
+
 bp = Blueprint("orders", __name__, url_prefix="/api/orders")
 
 
@@ -51,9 +97,23 @@ def _serialize_order_item(order: OrderItem, menu_item: MenuItem | None = None, m
     if tea_label is not None and not isinstance(tea_label, str):
         tea_label = str(tea_label)
 
+    sugar_label = customizations.get("sugar")
+    if sugar_label is not None and not isinstance(sugar_label, str):
+        sugar_label = str(sugar_label)
+    if isinstance(sugar_label, str):
+        sugar_label = sugar_label.strip() or None
+
+    ice_label = customizations.get("ice")
+    if ice_label is not None and not isinstance(ice_label, str):
+        ice_label = str(ice_label)
+    if isinstance(ice_label, str):
+        ice_label = ice_label.strip() or None
+
     options_payload = {
         "tea": tea_label,
         "milk": milk_label or "None",
+        "sugar": sugar_label,
+        "ice": ice_label,
         "addons": addon_labels,
     }
 
@@ -91,9 +151,23 @@ def _serialize_completed_record(record: OrderRecord, menu_item: MenuItem | None 
     if tea_label is not None and not isinstance(tea_label, str):
         tea_label = str(tea_label)
 
+    sugar_label = customizations.get("sugar")
+    if sugar_label is not None and not isinstance(sugar_label, str):
+        sugar_label = str(sugar_label)
+    if isinstance(sugar_label, str):
+        sugar_label = sugar_label.strip() or None
+
+    ice_label = customizations.get("ice")
+    if ice_label is not None and not isinstance(ice_label, str):
+        ice_label = str(ice_label)
+    if isinstance(ice_label, str):
+        ice_label = ice_label.strip() or None
+
     options_payload = {
         "tea": tea_label,
         "milk": milk_label or "None",
+        "sugar": sugar_label,
+        "ice": ice_label,
         "addons": addon_labels,
     }
 
@@ -165,10 +239,9 @@ def list_orders():
             if filter_ids:
                 stmt = stmt.where(OrderItem.id.in_(filter_ids))
         elif account_type == "staff":
+            stmt = stmt.where(OrderItem.status.in_(ACTIVE_ORDER_STATES))
             if filter_ids:
                 stmt = stmt.where(OrderItem.id.in_(filter_ids))
-            else:
-                stmt = stmt.limit(200)
         else:
             if not filter_ids:
                 return jsonify({"order_items": []})
@@ -178,6 +251,8 @@ def list_orders():
         for order, menu_item, member in session.execute(stmt).all():
             payload = _serialize_order_item(order, menu_item, member)
             result_by_id[payload["id"]] = payload
+
+        active_ids = set(result_by_id.keys())
 
         record_stmt = (
             select(OrderRecord, MenuItem, Member)
@@ -200,9 +275,14 @@ def list_orders():
         else:
             record_stmt = record_stmt.where(OrderRecord.order_item_id.in_(filter_ids)).where(OrderRecord.member_id.is_(None))
 
-        for record, menu_item, member in session.execute(record_stmt).all():
-            payload = _serialize_completed_record(record, menu_item, member)
-            result_by_id[payload["id"]] = payload
+        include_records = not (account_type == "staff" and not filter_ids)
+
+        if include_records:
+            for record, menu_item, member in session.execute(record_stmt).all():
+                if record.order_item_id in active_ids:
+                    continue
+                payload = _serialize_completed_record(record, menu_item, member)
+                result_by_id[payload["id"]] = payload
 
         ordered_payload = sorted(result_by_id.values(), key=lambda item: item.get("created_at") or "", reverse=True)
         return jsonify({"order_items": ordered_payload})
@@ -396,49 +476,10 @@ def update_order(order_item_id: int):
             order.staff_id = account_id
 
         if new_status == "complete":
-            menu_item = session.get(MenuItem, order.item_id)
-            member = session.get(Member, order.member_id) if order.member_id else None
             order.status = new_status
-            completed_at = current_local_datetime()
-            existing_record = session.scalar(
-                select(OrderRecord).where(OrderRecord.order_item_id == order.id)
-            )
-            serialized = _serialize_order_item(order, menu_item, member)
-
-            if existing_record:
-                existing_record.member_id = order.member_id
-                if account_type == "staff" and account_id:
-                    existing_record.staff_id = account_id
-                else:
-                    existing_record.staff_id = order.staff_id
-                existing_record.item_id = order.item_id
-                existing_record.qty = order.qty
-                existing_record.status = order.status
-                existing_record.total_price = order.total_price
-                existing_record.created_at = order.created_at
-                existing_record.customizations = order.customizations
-                if not existing_record.completed_at:
-                    existing_record.completed_at = completed_at
-                session.delete(order)
-                session.commit()
-                return jsonify(serialized)
-
-            record = OrderRecord(
-                order_item_id=order.id,
-                member_id=order.member_id,
-                staff_id=order.staff_id,
-                item_id=order.item_id,
-                qty=order.qty,
-                status=order.status,
-                total_price=order.total_price,
-                created_at=order.created_at,
-                completed_at=completed_at,
-                customizations=order.customizations,
-            )
-            session.add(record)
-            session.delete(order)
+            payload = _archive_order(session, order, account_type=account_type, account_id=account_id)
             session.commit()
-            return jsonify(serialized)
+            return jsonify(payload)
 
         order.status = new_status
         session.commit()

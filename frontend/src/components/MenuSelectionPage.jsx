@@ -15,6 +15,9 @@ const normalizeCategory = raw => (raw || "").toString().toLowerCase();
 const CUSTOMIZATION_CATEGORY_KEYS = ["tea", "milk", "addon"];
 const UNCATEGORIZED_KEY = "__uncategorized__";
 
+const SUGAR_LEVEL_OPTIONS = ["0%", "25%", "50%", "75%", "100%"];
+const ICE_AMOUNT_OPTIONS = ["No Ice", "Less Ice", "Normal"];
+
 const formatCategoryLabel = raw => {
     if (typeof raw !== "string") {
         return "Other Items";
@@ -78,6 +81,8 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
     const [selectedTeaId, setSelectedTeaId] = useState(null);
     const [selectedMilkId, setSelectedMilkId] = useState(null);
     const [selectedAddonIds, setSelectedAddonIds] = useState([]);
+    const [selectedSugarLevel, setSelectedSugarLevel] = useState("100%");
+    const [selectedIceAmount, setSelectedIceAmount] = useState("Normal");
 
     const updateStatusMessage = typeof system?.onStatusMessage === "function" ? system.onStatusMessage : null;
 
@@ -270,6 +275,8 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
         const teaLabel = getDisplayLabel(selectedTea);
         const milkLabel = selectedMilk ? getDisplayLabel(selectedMilk) : "None";
         const addonLabels = selectedAddons.map(getDisplayLabel).filter(Boolean);
+        const sugarLabel = selectedSugarLevel || null;
+        const iceLabel = selectedIceAmount || null;
 
         let displayName = teaLabel ? `${teaLabel} Tea` : "Bubble Tea";
         if (milkLabel && milkLabel !== "None") {
@@ -277,6 +284,16 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
         }
         if (addonLabels.length > 0) {
             displayName += ` + ${addonLabels.join(", ")}`;
+        }
+        const descriptors = [];
+        if (sugarLabel) {
+            descriptors.push(`${sugarLabel} sugar`);
+        }
+        if (iceLabel) {
+            descriptors.push(`${iceLabel} ice`);
+        }
+        if (descriptors.length > 0) {
+            displayName += ` (${descriptors.join(", ")})`;
         }
 
         const inventoryItemIds = [];
@@ -298,6 +315,8 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
             options: {
                 tea: teaLabel || null,
                 milk: milkLabel,
+                sugar: sugarLabel,
+                ice: iceLabel,
                 addons: addonLabels,
             },
         };
@@ -310,6 +329,7 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
             onAddToCart(payload);
         }
     };
+
     const canSubmit = Boolean(selectedTea) && !isLoading && !error;
 
     return (
@@ -422,6 +442,46 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
                                     </li>
                                 </ul>
                             )}
+                        </div>
+
+                        <div>
+                            <h3 style={{ margin: "0 0 4px 0" }}>Sugar Level:</h3>
+                            <ul style={listStyle}>
+                                {SUGAR_LEVEL_OPTIONS.map(option => (
+                                    <li key={option}>
+                                        <label style={listItemStyle}>
+                                            <input
+                                                type="radio"
+                                                name="sugar-level"
+                                                value={option}
+                                                checked={selectedSugarLevel === option}
+                                                onChange={() => setSelectedSugarLevel(option)}
+                                            />
+                                            <span>{option}</span>
+                                        </label>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h3 style={{ margin: "0 0 4px 0" }}>Ice Amount:</h3>
+                            <ul style={listStyle}>
+                                {ICE_AMOUNT_OPTIONS.map(option => (
+                                    <li key={option}>
+                                        <label style={listItemStyle}>
+                                            <input
+                                                type="radio"
+                                                name="ice-amount"
+                                                value={option}
+                                                checked={selectedIceAmount === option}
+                                                onChange={() => setSelectedIceAmount(option)}
+                                            />
+                                            <span>{option}</span>
+                                        </label>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
 
                         <div style={{ fontWeight: 700 }}>

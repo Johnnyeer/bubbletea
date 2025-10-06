@@ -42,6 +42,14 @@ export default function CartPage({ system, cartItems = [], navigate, onCheckout,
                             if (milkLabel && milkLabel !== "None") {
                                 details.push(`Milk: ${milkLabel}`);
                             }
+                            const sugarLabel = item?.options?.sugar;
+                            if (sugarLabel) {
+                                details.push(`Sugar: ${sugarLabel}`);
+                            }
+                            const iceLabel = item?.options?.ice;
+                            if (iceLabel) {
+                                details.push(`Ice: ${iceLabel}`);
+                            }
                             const addonLabels = Array.isArray(item?.options?.addons) ? item.options.addons : [];
                             if (addonLabels.length > 0) {
                                 details.push(`Add-ons: ${addonLabels.join(", ")}`);
@@ -83,3 +91,4 @@ export default function CartPage({ system, cartItems = [], navigate, onCheckout,
         </SystemLayout>
     );
 }
+

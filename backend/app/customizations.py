@@ -35,6 +35,22 @@ def normalize_customizations(raw: Any) -> dict[str, object]:
             label = str(milk).strip()
             result["milk"] = label or "None"
 
+    if "sugar" in raw:
+        sugar = raw.get("sugar")
+        if sugar is None:
+            result["sugar"] = None
+        else:
+            label = str(sugar).strip()
+            result["sugar"] = label or None
+
+    if "ice" in raw:
+        ice = raw.get("ice")
+        if ice is None:
+            result["ice"] = None
+        else:
+            label = str(ice).strip()
+            result["ice"] = label or None
+
     if "addons" in raw:
         addons = raw.get("addons")
         cleaned: list[str] = []
@@ -66,6 +82,16 @@ def deserialize_customizations(raw: Any) -> dict[str, object]:
     if milk is not None:
         label = str(milk).strip()
         result["milk"] = label or "None"
+
+    sugar = data.get("sugar")
+    if sugar is not None:
+        label = str(sugar).strip()
+        result["sugar"] = label or None
+
+    ice = data.get("ice")
+    if ice is not None:
+        label = str(ice).strip()
+        result["ice"] = label or None
 
     addons = data.get("addons")
     if isinstance(addons, list):

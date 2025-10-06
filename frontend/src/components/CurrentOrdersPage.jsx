@@ -177,6 +177,14 @@ export default function CurrentOrdersPage({ system, session }) {
         if (milkLabel && milkLabel !== "None") {
             lines.push(`Milk: ${milkLabel}`);
         }
+        const sugarLabel = item?.options?.sugar;
+        if (sugarLabel) {
+            lines.push(`Sugar: ${sugarLabel}`);
+        }
+        const iceLabel = item?.options?.ice;
+        if (iceLabel) {
+            lines.push(`Ice: ${iceLabel}`);
+        }
         const addonLabels = Array.isArray(item?.options?.addons) ? item.options.addons : [];
         if (addonLabels.length > 0) {
             lines.push(`Add-ons: ${addonLabels.join(", ")}`);
@@ -277,4 +285,3 @@ export default function CurrentOrdersPage({ system, session }) {
         </SystemLayout>
     );
 }
-
