@@ -93,23 +93,39 @@ def role_required(*roles):
 def register():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
+    username_input = (data.get("username") or "").strip()
+    username_normalized = username_input.lower()
     password = (data.get("password") or "").strip()
     full_name = (data.get("full_name") or "").strip()
     requested_role = (data.get("role") or "customer").strip().lower()
 
     role = "customer" if requested_role in {"customer", "member"} else requested_role
 
-    if not email or not password or not full_name:
-        return _json_error("email, password, full_name are required", 400)
     if role not in {"customer", "staff", "manager"}:
         return _json_error("invalid role", 400)
 
+    if not password or not full_name:
+        return _json_error("password and full_name are required", 400)
+
+    if role == "customer":
+        if not email:
+            return _json_error("email, password, full_name are required", 400)
+    else:
+        if not username_input:
+            return _json_error("username, password, full_name are required", 400)
+
     db = SessionLocal()
     try:
-        existing_member = db.scalar(select(Member).where(Member.email == email))
-        existing_staff = db.scalar(select(Staff).where(Staff.email == email))
-        if existing_member or existing_staff:
-            return _json_error("email already registered", 409)
+        if role == "customer":
+            existing_member = db.scalar(select(Member).where(Member.email == email))
+            if existing_member:
+                return _json_error("email already registered", 409)
+        else:
+            existing_staff = db.scalar(
+                select(Staff).where(func.lower(Staff.username) == username_normalized)
+            )
+            if existing_staff:
+                return _json_error("username already registered", 409)
 
         if role == "customer":
             account = Member(
@@ -120,7 +136,7 @@ def register():
             account_type = "member"
         else:
             account = Staff(
-                email=email,
+                username=username_input,
                 password_hash=generate_password_hash(password),
                 full_name=full_name,
                 role=role,
@@ -130,17 +146,15 @@ def register():
         db.add(account)
         db.commit()
         db.refresh(account)
-        return (
-            jsonify(
-                {
-                    "message": "registered",
-                    "account_type": account_type,
-                    "id": account.id,
-                    "role": role,
-                }
-            ),
-            201,
-        )
+        response_payload = {
+            "message": "registered",
+            "account_type": account_type,
+            "id": account.id,
+            "role": role,
+        }
+        if account_type == "staff":
+            response_payload["username"] = account.username
+        return jsonify(response_payload), 201
     finally:
         db.close()
 
