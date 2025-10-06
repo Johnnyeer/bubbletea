@@ -51,7 +51,9 @@ const formatShiftListLabel = shifts => {
 
 export default function SchedulingPage({ system, session, navigate, token, onStatusMessage }) {
     const viewer = session?.user;
-    const viewerId = viewer?.id;
+    const viewerIdRaw = viewer?.id;
+    const parsedViewerId = typeof viewerIdRaw === "number" ? viewerIdRaw : Number(viewerIdRaw);
+    const viewerId = Number.isFinite(parsedViewerId) ? parsedViewerId : null;
     const viewerRole = typeof viewer?.role === "string" ? viewer.role.toLowerCase() : "customer";
     const isStaff = ["staff", "manager", "admin"].includes(viewerRole);
     const canManageAll = viewerRole === "manager" || viewerRole === "admin";
@@ -178,7 +180,8 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
 
     const handleClaimShift = async (dateIso, shiftName, staffOverride) => {
         const finalStaffId = staffOverride ?? (canManageAll ? viewerId : undefined);
-        if (canManageAll && (finalStaffId === undefined || finalStaffId === null || finalStaffId === "")) {
+        const requiresExplicitId = canManageAll && staffOverride !== undefined;
+        if (requiresExplicitId && (finalStaffId === undefined || finalStaffId === null || finalStaffId === "")) {
             setError("Enter a staff ID before assigning this shift.");
             updateStatus?.("Enter a staff ID before assigning this shift.");
             return;
@@ -399,7 +402,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleClaimShift(day.iso, slot.key, viewerId)}
+                                                                onClick={() => handleClaimShift(day.iso, slot.key, viewerId ?? undefined)}
                                                                 disabled={claimDisabled}
                                                                 style={{
                                                                     ...secondaryButtonStyle,

@@ -152,12 +152,15 @@ export default function App() {
                 return data;
             })
             .then(data => {
+                const rawId = data.id ?? null;
+                const numericId = typeof rawId === "number" ? rawId : Number(rawId);
                 const profile = {
+                    id: Number.isFinite(numericId) ? numericId : null,
                     full_name: data.full_name || loginForm.username || loginForm.email || "",
                     role: data.role || "customer",
                     account_type: data.account_type || "member",
-                    email: loginForm.email || "",
-                    username: loginForm.username || "",
+                    email: data.email || loginForm.email || "",
+                    username: data.username || loginForm.username || "",
                 };
                 setToken(data.access_token || "");
                 setUser(profile);

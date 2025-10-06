@@ -199,14 +199,20 @@ def login():
         identity = f"{account_type}:{account.id}"
         claims = {"role": resolved_role, "name": account.full_name, "account_type": account_type}
         token = create_access_token(identity=identity, additional_claims=claims)
-        return jsonify(
-            {
-                "access_token": token,
-                "role": resolved_role,
-                "full_name": account.full_name,
-                "account_type": account_type,
-            }
-        )
+
+        response_payload = {
+            "access_token": token,
+            "role": resolved_role or (getattr(account, "role", None) or "customer"),
+            "full_name": account.full_name,
+            "account_type": account_type,
+            "id": account.id,
+        }
+        if account_type == "staff":
+            response_payload["username"] = getattr(account, "username", "")
+        else:
+            response_payload["email"] = getattr(account, "email", "")
+
+        return jsonify(response_payload)
     finally:
         db.close()
 
