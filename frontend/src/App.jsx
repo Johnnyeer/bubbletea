@@ -427,6 +427,7 @@ export default function App() {
                     session={sessionProps}
                 />
             );
+        case "/inventory":
         case "/admin":
         case "/":
             return (
