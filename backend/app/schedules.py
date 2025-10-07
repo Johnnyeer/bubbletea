@@ -66,25 +66,35 @@ def list_staff():
 @bp.get("")
 @role_required("staff", "manager")
 def list_shifts():
-    today = current_local_datetime().date()
-    end_date = today + timedelta(days=7)
+    start_date_param = request.args.get("start_date")
+    if start_date_param:
+        try:
+            start_date = date.fromisoformat(start_date_param)
+        except (TypeError, ValueError):
+            return _json_error("start_date must be YYYY-MM-DD", 400)
+    else:
+        start_date = current_local_datetime().date()
+
+    end_date = start_date + timedelta(days=7)
 
     with session_scope() as session:
         stmt = (
             select(ScheduleShift, Staff)
             .join(Staff, Staff.id == ScheduleShift.staff_id)
-            .where(ScheduleShift.shift_date >= today)
+            .where(ScheduleShift.shift_date >= start_date)
             .where(ScheduleShift.shift_date < end_date)
         )
-        rows = session.execute(stmt.order_by(ScheduleShift.shift_date, ScheduleShift.shift_name)).all()
+        rows = session.execute(
+            stmt.order_by(ScheduleShift.shift_date, ScheduleShift.shift_name)
+        ).all()
         payload = [_serialize_shift(shift, staff) for shift, staff in rows]
-        return jsonify(
-            {
-                "shifts": payload,
-                "start_date": today.isoformat(),
-                "end_date": (end_date - timedelta(days=1)).isoformat(),
-            }
-        )
+    return jsonify(
+        {
+            "shifts": payload,
+            "start_date": start_date.isoformat(),
+            "end_date": (end_date - timedelta(days=1)).isoformat(),
+        }
+    )
 
 
 @bp.post("")

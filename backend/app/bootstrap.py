@@ -1,4 +1,4 @@
-﻿"""Database bootstrap utilities."""
+"""Database bootstrap utilities."""
 from decimal import Decimal
 from sqlalchemy import inspect, select
 from werkzeug.security import generate_password_hash
@@ -8,9 +8,9 @@ from .models import Base, Staff, OrderItem, OrderRecord, MenuItem, Member
 from .orders import _archive_order
 
 SEED_MENU_ITEMS = [
-    {"name": "Green", "category": "tea", "price": Decimal("3.50"), "quantity": 100},
-    {"name": "Black", "category": "tea", "price": Decimal("3.25"), "quantity": 100},
-    {"name": "Oolong", "category": "tea", "price": Decimal("3.75"), "quantity": 100},
+    {"name": "Green Tea", "category": "tea", "price": Decimal("3.50"), "quantity": 100},
+    {"name": "Black Tea", "category": "tea", "price": Decimal("3.25"), "quantity": 100},
+    {"name": "Oolong Tea", "category": "tea", "price": Decimal("3.75"), "quantity": 100},
     {"name": "Evaporated Milk", "category": "milk", "price": Decimal("0.60"), "quantity": 100},
     {"name": "Fresh Milk", "category": "milk", "price": Decimal("0.70"), "quantity": 100},
     {"name": "Oat Milk", "category": "milk", "price": Decimal("0.80"), "quantity": 100},
@@ -22,7 +22,6 @@ SEED_MENU_ITEMS = [
 SEED_STAFF_ACCOUNTS = [
     {"username": "staff1", "full_name": "Staff One", "role": "staff"},
     {"username": "staff2", "full_name": "Staff Two", "role": "staff"},
-    {"username": "staff3", "full_name": "Staff Three", "role": "staff"},
 ]
 
 SEED_MEMBER_ACCOUNTS = [

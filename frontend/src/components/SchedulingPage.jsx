@@ -24,8 +24,6 @@ const SHIFT_SLOTS = Array.from({ length: SHIFT_END_HOUR - SHIFT_START_HOUR }, (_
     };
 });
 
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
-
 const parseISODate = iso => {
     if (!iso) {
         return new Date();
@@ -43,6 +41,21 @@ const startOfDay = value => {
     return base;
 };
 
+
+const startOfWeek = value => {
+    const base = startOfDay(value);
+    const day = base.getDay();
+    const offset = (day + 6) % 7;
+    base.setDate(base.getDate() - offset);
+    return base;
+};
+
+const addDays = (value, amount) => {
+    const base = new Date(value);
+    base.setDate(base.getDate() + amount);
+    return base;
+};
+
 const formatDateLabel = date =>
     date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 
@@ -57,13 +70,207 @@ const toLocalISODate = value => {
     return `${year}-${month}-${day}`;
 };
 
-const formatShiftListLabel = shifts => {
-    if (!Array.isArray(shifts) || shifts.length === 0) {
-        return "No one scheduled yet";
+
+const pageContainerStyle = {
+    ...cardStyle,
+    padding: 24,
+    display: "grid",
+    gap: 24,
+};
+
+const headerRowStyle = {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+};
+
+const headerTextGroupStyle = {
+    display: "grid",
+    gap: 4,
+};
+
+const navControlsStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+};
+
+const navButtonStyle = {
+    border: "1px solid var(--tea-border)",
+    background: "#fff",
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    display: "grid",
+    placeItems: "center",
+    fontSize: 16,
+    cursor: "pointer",
+};
+
+const navButtonDisabledStyle = {
+    opacity: 0.45,
+    cursor: "not-allowed",
+};
+
+const todayButtonStyle = {
+
+    ...secondaryButtonStyle,
+
+    padding: "8px 16px",
+
+};
+
+
+
+const createShiftButtonStyle = {
+
+    ...primaryButtonStyle,
+
+    padding: "8px 16px",
+
+};
+
+
+
+const tableWrapperStyle = {
+
+    overflowX: "auto",
+
+};
+
+
+
+const scheduleTableStyle = {
+    borderCollapse: "collapse",
+    width: "100%",
+    minWidth: 960,
+};
+
+const timeHeaderCellStyle = {
+    border: "1px solid var(--tea-border)",
+    background: "#f1f5f9",
+    padding: "10px 12px",
+    fontWeight: 600,
+    textAlign: "left",
+    width: 140,
+};
+
+const dayHeaderCellStyle = {
+    border: "1px solid var(--tea-border)",
+    background: "#f1f5f9",
+    padding: "10px 12px",
+    fontWeight: 600,
+    textAlign: "center",
+    fontSize: 14,
+};
+
+const timeCellStyle = {
+    border: "1px solid var(--tea-border)",
+    background: "#f8fafc",
+    padding: "8px 12px",
+    fontWeight: 600,
+    fontSize: 14,
+    whiteSpace: "nowrap",
+};
+
+const scheduleCellStyle = {
+    border: "1px solid var(--tea-border)",
+    padding: "8px 12px",
+    verticalAlign: "top",
+    background: "#fff",
+};
+
+const scheduleCellHighlightStyle = {
+    background: "rgba(221, 214, 254, 0.35)",
+    borderColor: "var(--tea-secondary)",
+};
+
+const cellContentStyle = {
+    display: "grid",
+    gap: 8,
+};
+
+const assignmentListStyle = {
+    display: "grid",
+    gap: 6,
+};
+
+const assignmentItemStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    padding: "6px 8px",
+    borderRadius: 8,
+    border: "1px solid var(--tea-border)",
+    background: "#f8fafc",
+};
+
+const assignmentMetaTextStyle = {
+    fontSize: 12,
+    color: "var(--tea-muted)",
+};
+
+const emptyCellTextStyle = {
+    fontSize: 13,
+    color: "var(--tea-muted)",
+};
+
+const cellActionsStyle = {
+    display: "grid",
+    gap: 8,
+};
+
+const actionsRowStyle = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+};
+
+const assignLabelTextStyle = {
+    fontSize: 13,
+    fontWeight: 600,
+};
+
+const staffUnavailableTextStyle = {
+    fontSize: 13,
+    color: "var(--tea-muted)",
+};
+
+const errorBannerStyle = {
+    border: "1px solid rgba(239, 68, 68, 0.32)",
+    background: "rgba(254, 226, 226, 0.78)",
+    borderRadius: 12,
+    padding: "12px 16px",
+    color: "#9f1239",
+    fontWeight: 600,
+};
+
+const weekSummaryTextStyle = {
+    fontSize: 13,
+    color: "var(--tea-muted)",
+};
+
+const formatWeekRange = (startDate, endDate) => {
+    if (!startDate || !endDate) {
+        return "";
     }
-    return shifts
-        .map(entry => entry.staff_name || `Staff #${entry.staff_id}`)
-        .join(", ");
+    const sameMonth = startDate.getMonth() === endDate.getMonth();
+    const sameYear = startDate.getFullYear() === endDate.getFullYear();
+
+    const startLabel = startDate.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+    const endOptions = { day: "numeric" };
+    if (!sameMonth) {
+        endOptions.month = "long";
+    }
+    if (!sameYear) {
+        endOptions.year = "numeric";
+    }
+    const endLabel = endDate.toLocaleDateString(undefined, endOptions);
+    const trailingYear = sameYear ? `, ${startDate.getFullYear()}` : "";
+    return `Week of ${startLabel} - ${endLabel}${trailingYear}`;
 };
 
 export default function SchedulingPage({ system, session, navigate, token, onStatusMessage }) {
@@ -77,8 +284,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
     const authToken = token || session?.token || "";
 
     const [shifts, setShifts] = useState([]);
-    const [rangeStart, setRangeStart] = useState(null);
-    const [rangeEnd, setRangeEnd] = useState(null);
+    const [weekStartIso, setWeekStartIso] = useState(() => toLocalISODate(startOfWeek(new Date())));
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [assignmentInputs, setAssignmentInputs] = useState({});
@@ -95,8 +301,12 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         return headerBag;
     }, [authToken]);
 
-    const tryLoadViaDashboard = async () => {
+    const tryLoadViaDashboard = async targetIso => {
         if (typeof session?.onLoadDashboard !== "function") {
+            return false;
+        }
+        const defaultWeekIso = toLocalISODate(startOfWeek(new Date()));
+        if (targetIso && targetIso !== defaultWeekIso) {
             return false;
         }
         try {
@@ -104,8 +314,12 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
             const data = session?.dashboardData;
             if (data && Array.isArray(data.shifts)) {
                 setShifts(data.shifts);
-                if (data.start_date) setRangeStart(data.start_date);
-                if (data.end_date) setRangeEnd(data.end_date);
+                if (data.start_date) {
+                    const normalized = toLocalISODate(startOfWeek(parseISODate(data.start_date)));
+                    setWeekStartIso(normalized);
+                } else {
+                    setWeekStartIso(defaultWeekIso);
+                }
                 return true;
             }
         } catch (err) {
@@ -129,31 +343,40 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
             setStaffOptions(options);
         } catch (err) {
             const message = err.message || "Unable to load staff roster";
-            setStaffOptions([]);
+            setError(message);
             updateStatus?.(message);
         }
     };
 
-    const loadShifts = async () => {
+    const loadShifts = async startDateOverrideIso => {
+        const defaultWeekIso = toLocalISODate(startOfWeek(new Date()));
+        const targetIso = startDateOverrideIso || weekStartIso || defaultWeekIso;
         setIsLoading(true);
         setError("");
         try {
-            const usedDashboard = await tryLoadViaDashboard();
+            const usedDashboard = await tryLoadViaDashboard(targetIso);
             if (usedDashboard) {
                 if (canManageAll) {
                     await loadStaffOptions();
                 }
                 return;
             }
-            const response = await fetch("/api/scheduling", { headers });
+            const query = targetIso ? `?start_date=${encodeURIComponent(targetIso)}` : "";
+            const response = await fetch(`/api/scheduling${query}`, { headers });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(data.error || "Unable to load schedule");
             }
             const collection = Array.isArray(data.shifts) ? data.shifts : [];
             setShifts(collection);
-            setRangeStart(data.start_date || null);
-            setRangeEnd(data.end_date || null);
+            if (data.start_date) {
+                const normalized = toLocalISODate(startOfWeek(parseISODate(data.start_date)));
+                if (normalized !== weekStartIso) {
+                    setWeekStartIso(normalized);
+                }
+            } else if (!weekStartIso && targetIso) {
+                setWeekStartIso(targetIso);
+            }
             if (canManageAll) {
                 await loadStaffOptions();
             }
@@ -170,9 +393,9 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         if (!isStaff) {
             return;
         }
-        loadShifts();
+        loadShifts(weekStartIso);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isStaff, token]);
+    }, [isStaff, weekStartIso, token]);
 
     useEffect(() => {
         if (canManageAll && isStaff) {
@@ -183,17 +406,26 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [canManageAll, authToken]);
 
+    const resolvedWeekStart = useMemo(() => {
+        if (weekStartIso) {
+            const parsed = parseISODate(weekStartIso);
+            if (!Number.isNaN(parsed.getTime())) {
+                return startOfWeek(parsed);
+            }
+        }
+        return startOfWeek(new Date());
+    }, [weekStartIso]);
+
     const upcomingDays = useMemo(() => {
-        const startDate = startOfDay(rangeStart ? parseISODate(rangeStart) : new Date());
         return Array.from({ length: 7 }, (_, offset) => {
-            const current = new Date(startDate.getTime() + offset * DAY_IN_MS);
+            const current = addDays(resolvedWeekStart, offset);
             return {
                 date: current,
                 iso: toLocalISODate(current),
                 label: formatDateLabel(current),
             };
         });
-    }, [rangeStart]);
+    }, [resolvedWeekStart]);
 
     const shiftLookup = useMemo(() => {
         const lookup = new Map();
@@ -218,8 +450,9 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         const finalStaffId = staffOverride ?? (canManageAll ? viewerId : undefined);
         const requiresExplicitId = canManageAll && staffOverride !== undefined;
         if (requiresExplicitId && (finalStaffId === undefined || finalStaffId === null || finalStaffId === "")) {
-            setError("Enter a staff ID before assigning this shift.");
-            updateStatus?.("Enter a staff ID before assigning this shift.");
+            const message = "Enter a staff ID before assigning this shift.";
+            setError(message);
+            updateStatus?.(message);
             return;
         }
 
@@ -279,7 +512,6 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
             setPendingKey(null);
         }
     };
-
     if (!isStaff) {
         return (
             <SystemLayout system={system}>
@@ -294,192 +526,250 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         );
     }
 
-    const titleDescription = `Manage hourly shifts between ${SHIFT_SLOTS[0].window.split(" - ")[0]} and ${SHIFT_SLOTS[SHIFT_SLOTS.length - 1].window.split(" - ")[1]}.`;
-
-    return (
-        <SystemLayout system={system}>
-            <section style={{ ...cardStyle, display: "grid", gap: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                    <div>
-                        <h2 style={{ margin: 0 }}>Upcoming Schedule</h2>
-                        <p style={{ margin: "6px 0 0 0", color: "rgba(15, 23, 42, 0.72)" }}>{titleDescription}</p>
-                        {rangeStart && rangeEnd && (
-                            <p style={{ margin: "4px 0 0 0", color: "var(--tea-muted)", fontSize: 14 }}>
-                                Showing {formatDateLabel(parseISODate(rangeStart))} through {formatDateLabel(parseISODate(rangeEnd))}.
-                            </p>
+    const renderShiftCell = (day, slot) => {
+        const dayAssignments = shiftLookup.get(day.iso) || {};
+        const slotAssignments = dayAssignments[slot.key] || [];
+        const viewerHasShift = slotAssignments.some(item => item.staff_id === viewerId);
+        const assignmentKey = getAssignmentKey(day.iso, slot.key);
+        const inputValue = assignmentInputs[assignmentKey] ?? "";
+        const claimDisabled = pendingKey === `claim-${day.iso}-${slot.key}`;
+        const removingShiftId = pendingKey?.startsWith("remove-") ? Number(pendingKey.replace("remove-", "")) : null;
+        const cellStyle = viewerHasShift ? { ...scheduleCellStyle, ...scheduleCellHighlightStyle } : scheduleCellStyle;
+        return (
+            <td key={`${day.iso}-${slot.key}`} style={cellStyle}>
+                <div style={cellContentStyle}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontWeight: 600 }}>
+                            {slotAssignments.length === 0 ? "Open shift" : `${slotAssignments.length} scheduled`}
+                        </span>
+                        <span style={assignmentMetaTextStyle}>{slot.window}</span>
+                    </div>
+                    {viewerHasShift && (
+                        <span style={{ ...assignmentMetaTextStyle, color: "var(--tea-secondary)", fontWeight: 600 }}>
+                            You're scheduled
+                        </span>
+                    )}
+                    <div style={assignmentListStyle}>
+                        {slotAssignments.length === 0 ? (
+                            <span style={emptyCellTextStyle}>No one scheduled</span>
+                        ) : (
+                            slotAssignments.map(item => {
+                                const removing = removingShiftId === item.id;
+                                const viewerEntry = item.staff_id === viewerId;
+                                const entryStyle = viewerEntry
+                                    ? { ...assignmentItemStyle, borderColor: "var(--tea-secondary)", background: "rgba(221, 214, 254, 0.4)" }
+                                    : assignmentItemStyle;
+                                return (
+                                    <div key={item.id} style={entryStyle}>
+                                        <div>
+                                            <div style={{ fontWeight: 600 }}>{item.staff_name || `Staff #${item.staff_id}`}</div>
+                                            <div style={assignmentMetaTextStyle}>{item.role || "staff"}</div>
+                                        </div>
+                                        {(canManageAll || viewerEntry) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveShift(item)}
+                                                disabled={pendingKey === `remove-${item.id}`}
+                                                style={{ ...secondaryButtonStyle, padding: "4px 10px", opacity: removing ? 0.7 : 1, cursor: removing ? "wait" : "pointer" }}
+                                            >
+                                                {removing ? "Removing..." : "Remove"}
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })
                         )}
                     </div>
-                    <button type="button" onClick={loadShifts} style={primaryButtonStyle} disabled={isLoading}>
-                        {isLoading ? "Refreshing..." : "Refresh"}
-                    </button>
-                </div>
-
-                {error && (
-                    <div
-                        style={{
-                            border: "1px solid #fca5a5",
-                            background: "#fee2e2",
-                            borderRadius: 8,
-                            padding: 12,
-                            color: "#991b1b",
-                        }}
-                    >
-                        {error}
-                    </div>
-                )}
-
-                <div style={{ display: "grid", gap: 16 }}>
-                    {upcomingDays.map(day => {
-                        const dayAssignments = shiftLookup.get(day.iso) || {};
-                        return (
-                            <article
-                                key={day.iso}
-                                style={{
-                                    border: "1px solid #cbd5e1",
-                                    borderRadius: 12,
-                                    padding: 16,
-                                    background: "#fff",
-                                    display: "grid",
-                                    gap: 16,
-                                }}
-                            >
-                                <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-                                    <h3 style={{ margin: 0 }}>{day.label}</h3>
-                                    <span style={{ color: "var(--tea-muted)", fontSize: 14 }}>{day.iso}</span>
-                                </header>
-
-                                <div style={{ display: "grid", gap: 12 }}>
-                                    {SHIFT_SLOTS.map(slot => {
-                                        const slotAssignments = dayAssignments[slot.key] || [];
-                                        const viewerHasShift = slotAssignments.some(item => item.staff_id === viewerId);
-                                        const assignmentKey = getAssignmentKey(day.iso, slot.key);
-                                        const inputValue = assignmentInputs[assignmentKey] ?? "";
-                                        const claimDisabled = pendingKey === `claim-${day.iso}-${slot.key}`;
-                                        const removingShiftId = pendingKey?.startsWith("remove-")
-                                            ? Number(pendingKey.replace("remove-", ""))
-                                            : null;
-                                        return (
-                                            <section
-                                                key={slot.key}
-                                                style={{
-                                                    border: "1px solid #e2e8f0",
-                                                    borderRadius: 10,
-                                                    padding: 12,
-                                                    display: "grid",
-                                                    gap: 8,
-                                                }}
-                                            >
-                                                <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                                                    <div>
-                                                        <div style={{ fontWeight: 600 }}>{slot.label} Slot</div>
-                                                        <div style={{ color: "var(--tea-muted)", fontSize: 13 }}>{slot.window}</div>
-                                                    </div>
-                                                    <div style={{ color: "rgba(15, 23, 42, 0.72)", fontSize: 13 }}>{formatShiftListLabel(slotAssignments)}</div>
-                                                </header>
-
-                                                {slotAssignments.length > 0 && (
-                                                    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
-                                                        {slotAssignments.map(item => {
-                                                            const removing = removingShiftId === item.id;
-                                                            return (
-                                                                <li key={item.id} style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-                                                                    <div>
-                                                                        <div style={{ fontWeight: 600 }}>{item.staff_name || `Staff #${item.staff_id}`}</div>
-                                                                        <div style={{ color: "var(--tea-muted)", fontSize: 13 }}>{item.role || "staff"}</div>
-                                                                    </div>
-                                                                    {(canManageAll || item.staff_id === viewerId) && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleRemoveShift(item)}
-                                                                            disabled={pendingKey === `remove-${item.id}`}
-                                                                            style={{
-                                                                                ...secondaryButtonStyle,
-                                                                                padding: "4px 10px",
-                                                                                opacity: pendingKey === `remove-${item.id}` ? 0.7 : 1,
-                                                                                cursor: pendingKey === `remove-${item.id}` ? "wait" : "pointer",
-                                                                            }}
-                                                                        >
-                                                                            {removing ? "Removing..." : "Remove"}
-                                                                        </button>
-                                                                    )}
-                                                                </li>
-                                                            );
-                                                        })}
-                                                    </ul>
-                                                )}
-
-                                                <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-                                                    {canManageAll ? (
-                                                        <>
-                                                            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                                <span style={{ fontWeight: 600 }}>Staff</span>
-                                                                {staffOptions.length === 0 ? (
-                                                                    <span style={{ fontSize: 13, color: "var(--tea-muted)" }}>No staff available</span>
-                                                                ) : (
-                                                                    <select
-                                                                        value={String(inputValue || "")}
-                                                                        onChange={event => handleAssignmentInputChange(day.iso, slot.key, event.target.value)}
-                                                                        style={{ ...inputStyle, width: 220 }}
-                                                                    >
-                                                                        <option value="">Select staff…</option>
-                                                                        {staffOptions.map(option => (
-                                                                            <option key={option.id} value={option.id}>
-                                                                                {option.full_name} (#{option.id})
-                                                                            </option>
-                                                                        ))}
-                                                                    </select>
-                                                                )}
-                                                            </label>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleClaimShift(day.iso, slot.key, inputValue)}
-                                                                disabled={claimDisabled || staffOptions.length === 0}
-                                                                style={{
-                                                                    ...primaryButtonStyle,
-                                                                    padding: "6px 14px",
-                                                                    opacity: claimDisabled || staffOptions.length === 0 ? 0.7 : 1,
-                                                                    cursor: claimDisabled || staffOptions.length === 0 ? "wait" : "pointer",
-                                                                }}
-                                                            >
-                                                                {claimDisabled ? "Assigning..." : "Assign"}
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleClaimShift(day.iso, slot.key, viewerId ?? undefined)}
-                                                                disabled={claimDisabled}
-                                                                style={{
-                                                                    ...secondaryButtonStyle,
-                                                                    padding: "6px 14px",
-                                                                    opacity: claimDisabled ? 0.7 : 1,
-                                                                    cursor: claimDisabled ? "wait" : "pointer",
-                                                                }}
-                                                            >
-                                                                Assign Me
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleClaimShift(day.iso, slot.key)}
-                                                            disabled={viewerHasShift || claimDisabled}
-                                                            style={{
-                                                                ...primaryButtonStyle,
-                                                                padding: "6px 14px",
-                                                                opacity: viewerHasShift || claimDisabled ? 0.6 : 1,
-                                                                cursor: viewerHasShift || claimDisabled ? "not-allowed" : "pointer",
-                                                            }}
-                                                        >
-                                                            {viewerHasShift ? "You're scheduled" : claimDisabled ? "Claiming..." : "Claim this shift"}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </section>
-                                        );
-                                    })}
+                    <div style={cellActionsStyle}>
+                        {canManageAll ? (
+                            <>
+                                <div style={{ display: "grid", gap: 6 }}>
+                                    <span style={assignLabelTextStyle}>Assign to</span>
+                                    {staffOptions.length === 0 ? (
+                                        <span style={staffUnavailableTextStyle}>No staff available</span>
+                                    ) : (
+                                        <select
+                                            value={String(inputValue || "")}
+                                            onChange={event => handleAssignmentInputChange(day.iso, slot.key, event.target.value)}
+                                            style={{ ...inputStyle, minWidth: 180 }}
+                                        >
+                                            <option value="">Select staff</option>
+                                            {staffOptions.map(option => (
+                                                <option key={option.id} value={option.id}>
+                                                    {option.full_name} (#{option.id})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
-                            </article>
-                        );
-                    })}
+                                <div style={actionsRowStyle}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleClaimShift(day.iso, slot.key, inputValue)}
+                                        disabled={claimDisabled || staffOptions.length === 0}
+                                        style={{ ...primaryButtonStyle, padding: "6px 14px", opacity: claimDisabled || staffOptions.length === 0 ? 0.7 : 1, cursor: claimDisabled || staffOptions.length === 0 ? "not-allowed" : "pointer" }}
+                                    >
+                                        {claimDisabled ? "Assigning..." : "Assign"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleClaimShift(day.iso, slot.key, viewerId ?? undefined)}
+                                        disabled={claimDisabled}
+                                        style={{ ...secondaryButtonStyle, padding: "6px 14px", opacity: claimDisabled ? 0.7 : 1, cursor: claimDisabled ? "wait" : "pointer" }}
+                                    >
+                                        Assign Me
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => handleClaimShift(day.iso, slot.key)}
+                                disabled={viewerHasShift || claimDisabled}
+                                style={{ ...primaryButtonStyle, padding: "6px 14px", opacity: viewerHasShift || claimDisabled ? 0.6 : 1, cursor: viewerHasShift || claimDisabled ? "not-allowed" : "pointer" }}
+                            >
+                                {viewerHasShift ? "You're scheduled" : claimDisabled ? "Claiming..." : "Claim this shift"}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </td>
+        );
+    };
+
+    const rangeStartDate = resolvedWeekStart;
+    const rangeEndDate = upcomingDays.length > 0 ? addDays(resolvedWeekStart, upcomingDays.length - 1) : resolvedWeekStart;
+    const weekRangeLabel = formatWeekRange(rangeStartDate, rangeEndDate);
+    const todayIso = toLocalISODate(new Date());
+    const todayWeekStart = startOfWeek(new Date());
+    const canGoToPreviousWeek = resolvedWeekStart.getTime() > todayWeekStart.getTime();
+    const titleDescription = `Manage hourly shifts between ${SHIFT_SLOTS[0].window.split(" - ")[0]} and ${SHIFT_SLOTS[SHIFT_SLOTS.length - 1].window.split(" - ")[1]}.`;
+
+    const handleTodayClick = () => {
+        const currentWeekIso = toLocalISODate(startOfWeek(new Date()));
+        if (weekStartIso !== currentWeekIso) {
+            setWeekStartIso(currentWeekIso);
+        } else {
+            loadShifts(currentWeekIso);
+        }
+    };
+
+    const handleCreateShiftClick = () => {
+        if (!canManageAll) {
+            updateStatus?.("Only managers can create shifts.");
+            return;
+        }
+        navigate?.("/admin");
+    };
+
+    const handlePreviousWeek = () => {
+        if (!canGoToPreviousWeek) {
+            return;
+        }
+        const previousStart = addDays(resolvedWeekStart, -7);
+        setWeekStartIso(toLocalISODate(startOfWeek(previousStart)));
+    };
+
+    const handleNextWeek = () => {
+        const nextStart = addDays(resolvedWeekStart, 7);
+        setWeekStartIso(toLocalISODate(startOfWeek(nextStart)));
+    };
+    return (
+        <SystemLayout system={system}>
+            <section style={pageContainerStyle}>
+                <div style={headerRowStyle}>
+                    <div style={headerTextGroupStyle}>
+                        <h2 style={{ margin: 0 }}>Weekly Schedule</h2>
+                        <span style={weekSummaryTextStyle}>{weekRangeLabel}</span>
+                        <span style={weekSummaryTextStyle}>{titleDescription}</span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+                        <div style={navControlsStyle}>
+                            <button
+                                type="button"
+                                onClick={handleTodayClick}
+                                disabled={isLoading}
+                                style={{ ...todayButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
+                            >
+                                Today
+                            </button>
+                            <div style={navControlsStyle}>
+                                <button
+                                    type="button"
+                                    onClick={handlePreviousWeek}
+                                    disabled={!canGoToPreviousWeek || isLoading}
+                                    style={{
+                                        ...navButtonStyle,
+                                        ...(!canGoToPreviousWeek || isLoading ? navButtonDisabledStyle : {}),
+                                    }}
+                                >
+                                    {"<"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleNextWeek}
+                                    disabled={isLoading}
+                                    style={{ ...navButtonStyle, ...(isLoading ? navButtonDisabledStyle : {}) }}
+                                >
+                                    {">"}
+                                </button>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleCreateShiftClick}
+                            disabled={!canManageAll}
+                            style={{
+                                ...createShiftButtonStyle,
+                                opacity: canManageAll ? 1 : 0.55,
+                                cursor: canManageAll ? "pointer" : "not-allowed",
+                            }}
+                        >
+                            Create shift
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => loadShifts(weekStartIso)}
+                            disabled={isLoading}
+                            style={{ ...primaryButtonStyle, padding: "10px 20px", opacity: isLoading ? 0.75 : 1, cursor: isLoading ? "wait" : "pointer" }}
+                        >
+                            {isLoading ? "Refreshing..." : "Refresh"}
+                        </button>
+                    </div>
+                </div>
+                {error && <div style={errorBannerStyle}>{error}</div>}
+                <div style={tableWrapperStyle}>
+                    <table style={scheduleTableStyle}>
+                        <thead>
+                            <tr>
+                                <th style={timeHeaderCellStyle}>Time</th>
+                                {upcomingDays.map(day => {
+                                    const headerStyle = day.iso === todayIso
+                                        ? { ...dayHeaderCellStyle, background: "#e0f2fe", borderColor: "#38bdf8" }
+                                        : dayHeaderCellStyle;
+                                    const dayLabel = day.date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+                                    const weekdayLabel = day.date.toLocaleDateString(undefined, { weekday: "short" });
+                                    return (
+                                        <th key={day.iso} style={headerStyle}>
+                                            <div style={{ fontSize: 12, letterSpacing: "0.08em" }}>{weekdayLabel.toUpperCase()}</div>
+                                            <div style={{ fontSize: 16, fontWeight: 600 }}>{dayLabel}</div>
+                                        </th>
+                                    );
+                                })}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {SHIFT_SLOTS.map(slot => (
+                                <tr key={slot.key}>
+                                    <th scope="row" style={timeCellStyle}>
+                                        <div>{slot.label}</div>
+                                        <div style={assignmentMetaTextStyle}>{slot.window}</div>
+                                    </th>
+                                    {upcomingDays.map(day => renderShiftCell(day, slot))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </section>
         </SystemLayout>
