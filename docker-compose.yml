@@ -12,5 +12,5 @@ services:
       JWT_SECRET: change-me
     volumes:
       - ./data:/data
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"

@@ -96,6 +96,20 @@ SHIFT_END_HOUR = 22  # exclusive end hour
 SHIFT_NAMES = tuple(f"{hour:02d}:00" for hour in range(SHIFT_START_HOUR, SHIFT_END_HOUR))
 
 
+class MemberReward(Base):
+    """Member reward redemptions tracking."""
+    __tablename__ = "member_rewards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    member_id: Mapped[int] = mapped_column(ForeignKey("members.id", ondelete="CASCADE"), nullable=False)
+    reward_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'free_drink', 'free_addon'
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)  # 'pending', 'used'
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    used_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+
+    member: Mapped["Member"] = relationship("Member")
+
+
 class ScheduleShift(Base):
     """Shift assignments for staff and managers."""
     __tablename__ = "schedule_shifts"

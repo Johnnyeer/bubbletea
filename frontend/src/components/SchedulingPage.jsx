@@ -289,32 +289,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         return headerBag;
     }, [authToken]);
 
-    const tryLoadViaDashboard = async targetIso => {
-        if (typeof session?.onLoadDashboard !== "function") {
-            return false;
-        }
-        const defaultWeekIso = toLocalISODate(startOfWeek(new Date()));
-        if (targetIso && targetIso !== defaultWeekIso) {
-            return false;
-        }
-        try {
-            await session.onLoadDashboard("scheduling");
-            const data = session?.dashboardData;
-            if (data && Array.isArray(data.shifts)) {
-                setShifts(data.shifts);
-                if (data.start_date) {
-                    const normalized = toLocalISODate(startOfWeek(parseISODate(data.start_date)));
-                    setWeekStartIso(normalized);
-                } else {
-                    setWeekStartIso(defaultWeekIso);
-                }
-                return true;
-            }
-        } catch (err) {
-            console.warn("Dashboard scheduling load failed", err);
-        }
-        return false;
-    };
+
 
     const loadStaffOptions = async () => {
         if (!canManageAll) {
@@ -342,13 +317,6 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         setIsLoading(true);
         setError("");
         try {
-            const usedDashboard = await tryLoadViaDashboard(targetIso);
-            if (usedDashboard) {
-                if (canManageAll) {
-                    await loadStaffOptions();
-                }
-                return;
-            }
             const query = targetIso ? `?start_date=${encodeURIComponent(targetIso)}` : "";
             const response = await fetch(`/api/schedule${query}`, { headers });
             const data = await response.json().catch(() => ({}));

@@ -1,3 +1,69 @@
+import json
+from decimal import Decimal, InvalidOperation
+
+from datetime import datetime, timezone
+from flask import Blueprint, request, jsonify
+from .models import MemberReward
+from sqlalchemy import select, func
+
+bp = Blueprint("orders", __name__, url_prefix="/api/orders")
+
+# Rewards endpoint for member drink count
+@bp.get("/rewards")
+def get_member_rewards():
+    account_type, account_id, _ = _get_identity(optional=True)
+    if account_type != "member" or not account_id:
+        return jsonify({"error": "Unauthorized"}), 403
+    with session_scope() as session:
+        # Count completed drinks for this member
+        count = session.execute(
+            select(func.sum(OrderRecord.qty)).where(OrderRecord.member_id == account_id)
+        ).scalar() or 0
+    return jsonify({"drink_count": int(count)})
+
+# Redeem reward endpoint
+@bp.post("/rewards/redeem")
+def redeem_member_reward():
+    account_type, account_id, _ = _get_identity(optional=True)
+    if account_type != "member" or not account_id:
+        return jsonify({"error": "Unauthorized"}), 403
+    data = request.get_json(force=True)
+    reward_type = data.get("type")
+    # Get drink count
+    with session_scope() as session:
+        count = session.execute(
+            select(func.sum(OrderRecord.qty)).where(OrderRecord.member_id == account_id)
+        ).scalar() or 0
+        # Check eligibility
+        # Check if already redeemed for this milestone
+        already_redeemed = session.execute(
+            select(MemberReward).where(
+                MemberReward.member_id == account_id,
+                MemberReward.reward_type == reward_type,
+            )
+        ).first()
+        if reward_type == "free_drink" and count >= 10:
+            if already_redeemed:
+                return jsonify({"error": "Reward already redeemed."}), 400
+            session.add(MemberReward(
+                member_id=account_id,
+                reward_type=reward_type,
+                status="pending"
+            ))
+            session.commit()
+            return jsonify({"success": True})
+        elif reward_type == "free_addon" and count >= 5:
+            if already_redeemed:
+                return jsonify({"error": "Reward already redeemed."}), 400
+            session.add(MemberReward(
+                member_id=account_id,
+                reward_type=reward_type,
+                status="pending"
+            ))
+            session.commit()
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Not eligible for this reward."}), 400
 """Order management endpoints."""
 import json
 from decimal import Decimal, InvalidOperation
@@ -55,9 +121,6 @@ def _archive_order(
     session.flush()
 
     return _serialize_completed_record(record, menu_item, member)
-
-
-bp = Blueprint("orders", __name__, url_prefix="/api/orders")
 
 
 def current_local_datetime() -> datetime:
@@ -292,6 +355,7 @@ def list_orders():
 def create_order():
     data = request.get_json(silent=True) or {}
     raw_items = data.get("items") or []
+    applied_reward = data.get("reward")
     if not isinstance(raw_items, list) or len(raw_items) == 0:
         return _json_error("items must be a non-empty list", 400)
 
@@ -302,6 +366,15 @@ def create_order():
     order_items: list[tuple[OrderItem, MenuItem]] = []
 
     with session_scope() as session:
+        # If member, check for available reward
+        reward_obj = None
+        if member_id and applied_reward in {"free_addon", "free_drink"}:
+            reward_obj = session.execute(
+                select(MemberReward)
+                .where(MemberReward.member_id == member_id)
+                .where(MemberReward.reward_type == applied_reward)
+                .where(MemberReward.status == "pending")
+            ).scalar_one_or_none()
         inventory_reservations: dict[int, int] = {}
         tracked_items: dict[int, MenuItem] = {}
         inventory_lookup: dict[tuple[str, str], MenuItem] = {}
@@ -348,7 +421,7 @@ def create_order():
             inventory_reservations[item.id] = pending + amount
             return None
 
-        for entry in raw_items:
+    for idx, entry in enumerate(raw_items):
             if not isinstance(entry, dict):
                 return _json_error("each item must be an object", 400)
 
@@ -422,6 +495,14 @@ def create_order():
 
             unit_price = _coerce_decimal(entry.get("price"), menu_item.price)
             total_price = unit_price * quantity
+            # Apply reward: free drink (first item), or free add-on (set add-on price to 0)
+            if reward_obj:
+                if applied_reward == "free_drink" and idx == 0:
+                    total_price = Decimal("0.00")
+                elif applied_reward == "free_addon" and customizations.get("addons"):
+                    # Set add-on price to 0 (assumes add-ons are priced separately)
+                    # You may need to adjust this logic based on your menu/add-on pricing
+                    customizations["reward_free_addon"] = True
 
             customizations_json = json.dumps(customizations) if customizations else None
 
@@ -437,19 +518,23 @@ def create_order():
             session.add(order_item)
             order_items.append((order_item, menu_item))
 
-        for item_id, decrease in inventory_reservations.items():
-            item = tracked_items.get(item_id)
-            if not item or item.quantity is None:
-                continue
-            item.quantity = max(0, item.quantity - decrease)
+    for item_id, decrease in inventory_reservations.items():
+        item = tracked_items.get(item_id)
+        if not item or item.quantity is None:
+            continue
+        item.quantity = max(0, item.quantity - decrease)
 
-        session.commit()
+    # Mark reward as used if applied
+    if reward_obj:
+        reward_obj.status = "used"
+        session.add(reward_obj)
+    session.commit()
 
-        response_items = []
-        for order_item, menu_item in order_items:
-            session.refresh(order_item)
-            member = session.get(Member, order_item.member_id) if order_item.member_id else None
-            response_items.append(_serialize_order_item(order_item, menu_item, member))
+    response_items = []
+    for order_item, menu_item in order_items:
+        session.refresh(order_item)
+        member = session.get(Member, order_item.member_id) if order_item.member_id else None
+        response_items.append(_serialize_order_item(order_item, menu_item, member))
 
     return jsonify({"message": "order created", "order_items": response_items}), 201
 

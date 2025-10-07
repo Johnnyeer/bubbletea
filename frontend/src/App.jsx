@@ -10,7 +10,10 @@ import SchedulingPage from "./components/SchedulingPage.jsx";
 import CurrentOrdersPage from "./components/CurrentOrdersPage.jsx";
 import AnalyticsPage from "./components/AnalyticsPage.jsx";
 import PastOrdersPage from "./components/PastOrdersPage.jsx";
+import RewardPage from "./components/RewardPage.jsx";
 import SystemLayout from "./components/SystemLayout.jsx";
+import SessionSwitcher from "./components/SessionSwitcher.jsx";
+import sessionManager from "./utils/sessionManager.js";
 
 const CUSTOMER_NAVIGATION = [
     { to: "/order", label: "Member Log In" },
@@ -18,6 +21,7 @@ const CUSTOMER_NAVIGATION = [
     { to: "/cart", label: "Cart" },
     { to: "/order-summary", label: "Order Summary" },
     { to: "/past-orders", label: "Past Orders", requiresAuth: true },
+    { to: "/rewards", label: "Rewards", requiresAuth: true },
 ];
 
 const STAFF_NAVIGATION = [
@@ -53,22 +57,21 @@ const loadStoredUser = () => {
     if (typeof window === "undefined") {
         return null;
     }
-    try {
-        const raw = window.localStorage.getItem("jwt_user");
-        return raw ? JSON.parse(raw) : null;
-    } catch {
-        return null;
-    }
+    
+    // Try to migrate old session data first
+    sessionManager.migrateOldSession();
+    
+    // Get current user from session manager
+    return sessionManager.getCurrentUser();
 };
 
 export default function App() {
     const [currentPath, setCurrentPath] = useState(safePath);
     const [health, setHealth] = useState(null);
     const [loginForm, setLoginForm] = useState(EMPTY_LOGIN);
-    const [token, setToken] = useState(() => localStorage.getItem("jwt") || "");
+    const [token, setToken] = useState(() => sessionManager.getCurrentToken() || "");
     const [user, setUser] = useState(loadStoredUser);
     const [statusMessage, setStatusMessage] = useState("");
-    const [dashboardData, setDashboardData] = useState(null);
     const [cartItems, setCartItems] = useState([]);
     const [recentOrderItems, setRecentOrderItems] = useState([]);
     const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
@@ -79,6 +82,15 @@ export default function App() {
             .then(response => response.json())
             .then(setHealth)
             .catch(() => setHealth({ status: "unknown" }));
+        
+        // Initialize session manager and load current session
+        const currentUser = sessionManager.getCurrentUser();
+        const currentToken = sessionManager.getCurrentToken();
+        
+        if (currentUser && currentToken) {
+            setUser(currentUser);
+            setToken(currentToken);
+        }
     }, []);
 
     useEffect(() => {
@@ -90,33 +102,8 @@ export default function App() {
         return () => window.removeEventListener("popstate", handlePopState);
     }, []);
 
-    useEffect(() => {
-        if (typeof window === "undefined") {
-            return;
-        }
-        if (!token) {
-            window.localStorage.removeItem("jwt");
-            setUser(null);
-            return;
-        }
-
-        window.localStorage.setItem("jwt", token);
-    }, [token]);
-
-    useEffect(() => {
-        if (typeof window === "undefined") {
-            return;
-        }
-        if (!user) {
-            window.localStorage.removeItem("jwt_user");
-            return;
-        }
-        try {
-            window.localStorage.setItem("jwt_user", JSON.stringify(user));
-        } catch {
-            // ignore serialization issues
-        }
-    }, [user]);
+    // Session management is now handled by sessionManager
+    // No need for manual localStorage management
 
     const isAuthenticated = Boolean(token && user);
 
@@ -137,8 +124,6 @@ export default function App() {
     const handleLoginSubmit = (event, nextPath) => {
         event.preventDefault();
         setStatusMessage("Signing in...");
-        setUser(null);
-        setDashboardData(null);
 
         fetch("/api/auth/login", {
             method: "POST",
@@ -158,15 +143,31 @@ export default function App() {
                 const profile = {
                     id: Number.isFinite(numericId) ? numericId : null,
                     full_name: data.full_name || loginForm.username || loginForm.email || "",
-                    role: data.role || "customer",
+                    role: data.role || (data.account_type === "member" ? "customer" : "customer"),
                     account_type: data.account_type || "member",
                     email: data.email || loginForm.email || "",
                     username: data.username || loginForm.username || "",
                 };
+
+                // Check if user is already logged in
+                const identifier = profile.account_type === 'staff' ? profile.username : profile.email;
+                const existingSessionId = sessionManager.findExistingSession(profile.account_type, identifier);
+
+                if (existingSessionId) {
+                    // Switch to existing session
+                    sessionManager.switchSession(existingSessionId);
+                    setStatusMessage(`Switched to existing session for ${profile.full_name}`);
+                } else {
+                    // Create new session
+                    sessionManager.createSession(profile, data.access_token || "");
+                    setStatusMessage(nextPath ? "Login successful. Let's build your drink." : "Login successful.");
+                }
+
+                // Update current state
                 setToken(data.access_token || "");
                 setUser(profile);
-                setStatusMessage(nextPath ? "Login successful. Let's build your drink." : "Login successful.");
                 setLoginForm(EMPTY_LOGIN);
+                
                 if (nextPath) {
                     navigate(nextPath);
                 }
@@ -177,18 +178,45 @@ export default function App() {
     const handleOrderLoginSubmit = event => handleLoginSubmit(event, "/menu");
 
     const handleLogout = () => {
-        setToken("");
-        setDashboardData(null);
-        setStatusMessage("Signed out.");
-        setRecentOrderItems([]);
+        const activeSession = sessionManager.getActiveSession();
+        if (activeSession) {
+            sessionManager.removeSession(activeSession.id);
+            const newActiveSession = sessionManager.getActiveSession();
+            
+            if (newActiveSession) {
+                // Switch to another session
+                setToken(newActiveSession.token);
+                setUser(newActiveSession.user);
+                setStatusMessage(`Logged out. Switched to ${newActiveSession.user.full_name}`);
+            } else {
+                // No more sessions
+                setToken("");
+                setUser(null);
+                setStatusMessage("Signed out.");
+                setRecentOrderItems([]);
+            }
+        } else {
+            // Fallback for single session logout
+            setToken("");
+            setUser(null);
+            setStatusMessage("Signed out.");
+            setRecentOrderItems([]);
+        }
     };
 
     const handleGuestCheckout = () => {
         setToken("");
         setUser(null);
-        setDashboardData(null);
         setStatusMessage("Guest mode enabled. Browse the menu and build your order.");
         navigate("/menu");
+    };
+
+    const handleSessionChange = ({ user: newUser, token: newToken, isAuthenticated }) => {
+        setUser(newUser);
+        setToken(newToken);
+        if (!isAuthenticated) {
+            setRecentOrderItems([]);
+        }
     };
 
     const handleAddItemToCart = item => {
@@ -325,17 +353,19 @@ export default function App() {
         return data;
     };
 
-    const loadDashboard = endpoint => {
-        const label = (endpoint || "dashboard").toString();
-        const message = `Dashboard data (${label}) is not available.`;
-        setDashboardData({ message, available_actions: [] });
-        setStatusMessage(message);
-    };
 
-    const viewerRole = normalizeRole(user?.role) || "customer";
+
+    // Ensure proper role handling for members vs staff
+    let viewerRole = normalizeRole(user?.role) || "customer";
+    if (user?.account_type === "member" && (viewerRole === "staff" || viewerRole === "manager")) {
+        // Fix corrupted localStorage data where member has staff role
+        viewerRole = "customer";
+    }
+    
     const isStaffSignedIn = Boolean(isAuthenticated && (viewerRole === "staff" || viewerRole === "manager"));
     const hideNavigationOnHome = currentPath === "/" && !isStaffSignedIn;
-    const navigationLinks = hideNavigationOnHome
+    const hideNavigationOnOrderBeforeAuth = currentPath === "/order" && !isAuthenticated;
+    const navigationLinks = (hideNavigationOnHome || hideNavigationOnOrderBeforeAuth)
         ? []
         : getNavigationForRole(viewerRole).filter(link => !link.requiresAuth || isAuthenticated);
 
@@ -347,13 +377,13 @@ export default function App() {
         navigate,
         navigation: navigationLinks,
         onStatusMessage: setStatusMessage,
+        onSessionChange: handleSessionChange,
+        showSessionSwitcher: sessionManager.getAllSessions().length > 1,
     };
 
     const sessionProps = {
         isAuthenticated,
         user,
-        onLoadDashboard: loadDashboard,
-        dashboardData,
         statusMessage,
         token,
     };
@@ -369,6 +399,9 @@ export default function App() {
                         onLoginChange={handleLoginChange}
                         onLoginSubmit={handleOrderLoginSubmit}
                         onGuestCheckout={handleGuestCheckout}
+                        isAuthenticated={isAuthenticated}
+                        onLogout={handleLogout}
+                        user={user}
                     />
                 </SystemLayout>
             );
@@ -425,6 +458,14 @@ export default function App() {
                 <PastOrdersPage
                     system={systemProps}
                     session={sessionProps}
+                />
+            );
+        case "/rewards":
+            return (
+                <RewardPage
+                    system={systemProps}
+                    session={sessionProps}
+                    navigate={navigate}
                 />
             );
         case "/inventory":

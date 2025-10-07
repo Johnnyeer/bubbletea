@@ -1,82 +1,233 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from 'react';
+import {
+    cardStyle,
+    primaryButtonStyle,
+    secondaryButtonStyle,
+} from './styles.js';
+import SystemLayout from './SystemLayout.jsx';
 
-export default function RewardPage({ user }) {
+// Generate available rewards based on drink count
+const generateRewardsFromCount = (drinkCount) => {
+    const rewards = [];
+    
+    // Free drink reward (requires 10+ drinks)
+    rewards.push({
+        id: 'free_drink',
+        name: 'Free Drink Reward',
+        description: drinkCount >= 10 ? 'Redeem a free drink of your choice!' : `Complete ${10 - drinkCount} more drinks to unlock a free drink.`,
+        drinks_required: 10,
+        type: 'free_drink',
+        available: drinkCount >= 10
+    });
+    
+    // Free add-on reward (requires 5+ drinks)
+    rewards.push({
+        id: 'free_addon',
+        name: 'Free Add-on Reward',
+        description: drinkCount >= 5 ? 'Get a free add-on with your next drink!' : `Complete ${5 - drinkCount} more drinks to unlock a free add-on.`,
+        drinks_required: 5,
+        type: 'free_addon',
+        available: drinkCount >= 5
+    });
+    
+    return rewards;
+};
+
+export default function RewardPage({ system, session, navigate }) {
+    const [rewards, setRewards] = useState([]);
     const [drinkCount, setDrinkCount] = useState(0);
-    const [redeemStatus, setRedeemStatus] = useState("");
-    const [isRedeeming, setIsRedeeming] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
 
     useEffect(() => {
-        async function fetchDrinkCount() {
-            try {
-                const res = await fetch("/api/orders/rewards", {
-                    headers: { Authorization: `Bearer ${window.localStorage.getItem("jwt")}` },
-                });
-                const data = await res.json();
-                if (res.ok && typeof data.drink_count === "number") {
-                    setDrinkCount(data.drink_count);
-                } else {
-                    setDrinkCount(0);
-                }
-            } catch {
-                setDrinkCount(0);
-            }
+        if (!session?.isAuthenticated) {
+            navigate('/order');
+            return;
         }
-        fetchDrinkCount();
-    }, [user]);
+        loadRewards();
+    }, [session?.isAuthenticated, navigate]);
 
-    let rewardMsg = "Order more drinks to unlock rewards!";
-    let canRedeem = false;
-    let rewardType = "";
-    if (drinkCount >= 10) {
-        rewardMsg = "🎉 You earned a FREE DRINK! Redeem on your next order.";
-        canRedeem = true;
-        rewardType = "free_drink";
-    } else if (drinkCount >= 5) {
-        rewardMsg = "🎉 You earned a FREE ADD-ON! Redeem on your next order.";
-        canRedeem = true;
-        rewardType = "free_addon";
-    }
-
-    async function handleRedeem() {
-        setIsRedeeming(true);
-        setRedeemStatus("");
+    const loadRewards = async () => {
+        setIsLoading(true);
+        setError('');
         try {
-            const res = await fetch("/api/orders/rewards/redeem", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${window.localStorage.getItem("jwt")}`,
-                },
-                body: JSON.stringify({ type: rewardType }),
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-                setRedeemStatus("Reward redeemed! You can use it on your next order.");
-            } else {
-                setRedeemStatus(data.error || "Unable to redeem reward.");
+            const headers = { 'Content-Type': 'application/json' };
+            if (session?.token) {
+                headers.Authorization = `Bearer ${session.token}`;
             }
-        } catch {
-            setRedeemStatus("Unable to redeem reward.");
+
+            const response = await fetch('/api/orders/rewards', { headers });
+            const data = await response.json().catch(() => ({}));
+            
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP ${response.status}: Unable to load rewards`);
+            }
+            
+            // Convert drink count to available rewards
+            const drinkCount = data.drink_count || 0;
+            setDrinkCount(drinkCount);
+            const availableRewards = generateRewardsFromCount(drinkCount);
+            setRewards(availableRewards);
+        } catch (err) {
+            const message = err.message || 'Unable to load rewards';
+            setError(message);
+            system?.onStatusMessage?.(message);
+        } finally {
+            setIsLoading(false);
         }
-        setIsRedeeming(false);
+    };
+
+    const handleRewardApply = async (rewardId) => {
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (session?.token) {
+                headers.Authorization = `Bearer ${session.token}`;
+            }
+
+            // Find the reward being applied
+            const reward = rewards.find(r => r.id === rewardId);
+            if (!reward) {
+                throw new Error('Reward not found');
+            }
+
+            const response = await fetch('/api/orders/rewards/redeem', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ type: reward.type }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Unable to redeem reward');
+            }
+            
+            system?.onStatusMessage?.('Reward redeemed successfully!');
+            loadRewards(); // Refresh the rewards list
+        } catch (err) {
+            const message = err.message || 'Unable to redeem reward';
+            setError(message);
+            system?.onStatusMessage?.(message);
+        }
+    };
+
+    if (!session?.isAuthenticated) {
+        return null; // Will navigate away in useEffect
     }
 
     return (
-        <div className="tea-reward-page">
-            <h2>Rewards</h2>
-            <p>Welcome, {user?.full_name || user?.username || "Member"}!</p>
-            <p>You have ordered <strong>{drinkCount}</strong> drinks.</p>
-            <div style={{ margin: "1em 0", fontWeight: "bold" }}>{rewardMsg}</div>
-            {canRedeem && (
-                <button onClick={handleRedeem} disabled={isRedeeming} style={{ marginBottom: "1em" }}>
-                    {isRedeeming ? "Redeeming..." : "Redeem Reward"}
-                </button>
-            )}
-            {redeemStatus && <div style={{ color: "green", marginBottom: "1em" }}>{redeemStatus}</div>}
-            <ul>
-                <li>After 5 drinks: Free add-on</li>
-                <li>After 10 drinks: Free drink</li>
-            </ul>
-        </div>
+        <SystemLayout system={system}>
+            <div style={{ padding: '24px 0' }}>
+                <header style={{ marginBottom: 24 }}>
+                    <h1 style={{ margin: '0 0 8px 0', fontSize: 32 }}>Rewards</h1>
+                    <p style={{ margin: 0, color: 'var(--tea-muted)', fontSize: 18 }}>
+                        Redeem your points for exclusive discounts and free items.
+                    </p>
+                </header>
+
+                {error && (
+                    <div style={{
+                        ...cardStyle,
+                        backgroundColor: '#fee2e2',
+                        borderColor: '#dc2626',
+                        color: '#dc2626',
+                        marginBottom: 24
+                    }}>
+                        <p style={{ margin: 0 }}>{error}</p>
+                    </div>
+                )}
+
+                {isLoading ? (
+                    <div style={cardStyle}>
+                        <p style={{ margin: 0, textAlign: 'center' }}>Loading rewards...</p>
+                    </div>
+                ) : rewards.length > 0 ? (
+                    <div style={{ display: 'grid', gap: 16, marginTop: 24 }}>
+                        {rewards.map(reward => (
+                            <div key={reward.id} style={cardStyle}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <h3 style={{ margin: '0 0 8px 0', fontSize: 20 }}>
+                                            {reward.name}
+                                        </h3>
+                                        <p style={{ margin: '0 0 12px 0', color: 'var(--tea-muted)' }}>
+                                            {reward.description}
+                                        </p>
+                                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                                            <span style={{ 
+                                                fontSize: 14, 
+                                                fontWeight: 600,
+                                                color: reward.available ? '#059669' : '#dc2626'
+                                            }}>
+                                                Requires {reward.drinks_required} completed drinks
+                                            </span>
+                                            <span style={{ 
+                                                fontSize: 14, 
+                                                fontWeight: 500,
+                                                color: reward.available ? '#059669' : '#6b7280'
+                                            }}>
+                                                {reward.available ? 'Available!' : 'Not yet available'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {reward.available && reward.type !== 'info' && (
+                                        <button
+                                            onClick={() => handleRewardApply(reward.id)}
+                                            style={{
+                                                ...primaryButtonStyle,
+                                                padding: '8px 16px'
+                                            }}
+                                        >
+                                            Redeem
+                                        </button>
+                                    )}
+                                    {!reward.available && reward.type !== 'info' && (
+                                        <button
+                                            disabled
+                                            style={{
+                                                ...secondaryButtonStyle,
+                                                padding: '8px 16px',
+                                                opacity: 0.5,
+                                                cursor: 'not-allowed'
+                                            }}
+                                        >
+                                            Not Available
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div style={cardStyle}>
+                        <div style={{ textAlign: 'center' }}>
+                            <h3 style={{ margin: '0 0 8px 0' }}>No rewards available</h3>
+                            <p style={{ margin: 0, color: 'var(--tea-muted)' }}>
+                                Keep ordering to earn points and unlock exclusive rewards!
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                <div style={{ ...cardStyle, marginTop: 24, textAlign: 'center' }}>
+                    <h3 style={{ margin: '0 0 8px 0' }}>Your Loyalty Progress</h3>
+                    <p style={{ margin: '0 0 16px 0', fontSize: 24, fontWeight: 600, color: '#059669' }}>
+                        {drinkCount} drinks completed
+                    </p>
+                    <p style={{ margin: 0, color: 'var(--tea-muted)', fontSize: 14 }}>
+                        Complete orders to unlock rewards. Get a free drink after every 10 completed orders!
+                    </p>
+                    <div style={{ marginTop: 12, padding: '8px 16px', backgroundColor: '#f0f9ff', borderRadius: 8, border: '1px solid #0ea5e9' }}>
+                        <p style={{ margin: 0, fontSize: 14, color: '#0369a1' }}>
+                            <strong>Next milestone:</strong> {
+                                drinkCount < 5 ? `${5 - drinkCount} drinks until free add-on` : 
+                                drinkCount < 10 ? `${10 - drinkCount} drinks until free drink` : 
+                                'All milestone rewards unlocked! Keep ordering to earn more!'
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </SystemLayout>
     );
 }

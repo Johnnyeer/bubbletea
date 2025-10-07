@@ -5,7 +5,7 @@ from sqlalchemy import inspect, select
 from werkzeug.security import generate_password_hash
 
 from .db import SessionLocal, engine
-from .models import Base, Staff, OrderItem, OrderRecord, MenuItem, Member, ScheduleShift
+from .models import Base, Staff, OrderItem, OrderRecord, MenuItem, Member, ScheduleShift, MemberReward
 from .orders import _archive_order
 
 SEED_MENU_ITEMS = [

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     cardStyle,
     inputStyle,
@@ -5,6 +6,7 @@ import {
     primaryButtonStyle,
     secondaryButtonStyle,
 } from './styles.js';
+import LoginModeSwitcher from './LoginModeSwitcher.jsx';
 
 export default function OrderPage({
     navigate,
@@ -17,22 +19,50 @@ export default function OrderPage({
     onLogout,
     user,
 }) {
+    const [loginMode, setLoginMode] = useState('customer');
     return (
         <div className="order-page">
             <main className="order-page__main">
                 <div className="order-page__inner">
                     {isAuthenticated ? (
-                        <section style={{ ...cardStyle, display: 'grid', gap: 16 }}>
-                            <h3 style={{ margin: 0, fontSize: 24 }}>
-                                Welcome, {user?.username || 'Customer'}!
-                            </h3>
-                            <button
-                                onClick={onLogout}
-                                style={{ ...primaryButtonStyle, padding: '10px 18px' }}
-                            >
-                                Sign Out
-                            </button>
-                        </section>
+                        user?.role === 'customer' ? (
+                            <section style={{ ...cardStyle, display: 'grid', gap: 16 }}>
+                                <h3 style={{ margin: 0, fontSize: 24 }}>Account Information</h3>
+                                <div style={{ display: 'grid', gap: 8 }}>
+                                    <p style={{ margin: 0 }}>
+                                        <strong>Email:</strong> {user?.email || 'Not provided'}
+                                    </p>
+                                    <p style={{ margin: 0 }}>
+                                        <strong>Member since:</strong> {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={onLogout}
+                                    style={{ ...primaryButtonStyle, padding: '10px 18px' }}
+                                >
+                                    Sign Out
+                                </button>
+                            </section>
+                        ) : (
+                            <section style={{ ...cardStyle, display: 'grid', gap: 16 }}>
+                                <h3 style={{ margin: 0, fontSize: 24 }}>Register as Member</h3>
+                                <p style={{ margin: 0, color: 'var(--tea-muted)' }}>
+                                    Join our FREE membership to unlock exclusive deals and discounts.
+                                </p>
+                                <button
+                                    onClick={() => navigate('/register')}
+                                    style={{ ...primaryButtonStyle, padding: '10px 18px' }}
+                                >
+                                    Join our FREE membership
+                                </button>
+                                <button
+                                    onClick={onLogout}
+                                    style={{ ...secondaryButtonStyle, padding: '10px 18px' }}
+                                >
+                                    Sign Out
+                                </button>
+                            </section>
+                        )
                     ) : (
                         <>
                             <section className="order-page__intro">
@@ -44,21 +74,42 @@ export default function OrderPage({
                             </section>
 
                             <section style={{ ...cardStyle, display: 'grid', gap: 16 }}>
+                                <LoginModeSwitcher 
+                                    currentMode={loginMode} 
+                                    onModeChange={setLoginMode} 
+                                />
+                                
                                 <div>
-                                    <h3 style={{ margin: 0, fontSize: 24 }}>Member Log in</h3>
+                                    <h3 style={{ margin: 0, fontSize: 24 }}>
+                                        {loginMode === 'customer' ? 'Member Log in' : 'Staff Log in'}
+                                    </h3>
                                 </div>
                                 <form onSubmit={onLoginSubmit} style={{ display: 'grid', gap: 16 }}>
-                                    <label style={labelStyle}>
-                                        Email
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            value={loginForm.email}
-                                            onChange={onLoginChange}
-                                            required
-                                            style={inputStyle}
-                                        />
-                                    </label>
+                                    {loginMode === 'customer' ? (
+                                        <label style={labelStyle}>
+                                            Email
+                                            <input
+                                                type="email"
+                                                name="email"
+                                                value={loginForm.email}
+                                                onChange={onLoginChange}
+                                                required
+                                                style={inputStyle}
+                                            />
+                                        </label>
+                                    ) : (
+                                        <label style={labelStyle}>
+                                            Username
+                                            <input
+                                                type="text"
+                                                name="username"
+                                                value={loginForm.username}
+                                                onChange={onLoginChange}
+                                                required
+                                                style={inputStyle}
+                                            />
+                                        </label>
+                                    )}
                                     <label style={labelStyle}>
                                         Password
                                         <input
@@ -82,58 +133,62 @@ export default function OrderPage({
                                         Log in
                                     </button>
                                 </form>
-                                <div
-                                    style={{
-                                        display: 'grid',
-                                        gap: 8,
-                                        textAlign: 'center',
-                                        padding: '12px',
-                                        background: 'rgba(255, 255, 255, 0.72)',
-                                        borderRadius: 12,
-                                        border: '1px dashed #cbd5f5',
-                                    }}
-                                >
-                                    <p style={{ margin: 0, color: 'var(--tea-muted)', fontSize: 15 }}>
-                                        Not a member?
-                                    </p>
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/register')}
+                                {loginMode === 'customer' && (
+                                    <div
                                         style={{
-                                            ...secondaryButtonStyle,
-                                            padding: '10px 18px',
-                                            fontSize: 15,
+                                            display: 'grid',
+                                            gap: 8,
+                                            textAlign: 'center',
+                                            padding: '12px',
+                                            background: 'rgba(255, 255, 255, 0.72)',
+                                            borderRadius: 12,
+                                            border: '1px dashed #cbd5f5',
                                         }}
                                     >
-                                        Join our FREE membership
-                                    </button>
-                                    <p style={{ margin: 0, color: 'var(--tea-muted)', fontSize: 14 }}>
-                                        Unlock exclusive deals and discounts.
-                                    </p>
-                                </div>
-                                <div
-                                    style={{
-                                        ...cardStyle,
-                                        textAlign: 'center',
-                                        display: 'grid',
-                                        gap: 12,
-                                    }}
-                                >
-                                    <h3 style={{ margin: 0, fontSize: 24 }}>Continue as guest</h3>
-                                    <p style={{ margin: 0, color: 'var(--tea-muted)' }}>
-                                        Skip the sign-in and start building your order right away.
-                                    </p>
-                                    <button
-                                        onClick={onGuestCheckout}
+                                        <p style={{ margin: 0, color: 'var(--tea-muted)', fontSize: 15 }}>
+                                            Not a member?
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/register')}
+                                            style={{
+                                                ...secondaryButtonStyle,
+                                                padding: '10px 18px',
+                                                fontSize: 15,
+                                            }}
+                                        >
+                                            Join our FREE membership
+                                        </button>
+                                        <p style={{ margin: 0, color: 'var(--tea-muted)', fontSize: 14 }}>
+                                            Unlock exclusive deals and discounts.
+                                        </p>
+                                    </div>
+                                )}
+                                {loginMode === 'customer' && (
+                                    <div
                                         style={{
-                                            ...primaryButtonStyle,
-                                            padding: '10px 18px',
-                                            fontSize: 16,
+                                            ...cardStyle,
+                                            textAlign: 'center',
+                                            display: 'grid',
+                                            gap: 12,
                                         }}
                                     >
-                                        Continue as guest
-                                    </button>
-                                </div>
+                                        <h3 style={{ margin: 0, fontSize: 24 }}>Continue as guest</h3>
+                                        <p style={{ margin: 0, color: 'var(--tea-muted)' }}>
+                                            Skip the sign-in and start building your order right away.
+                                        </p>
+                                        <button
+                                            onClick={onGuestCheckout}
+                                            style={{
+                                                ...primaryButtonStyle,
+                                                padding: '10px 18px',
+                                                fontSize: 16,
+                                            }}
+                                        >
+                                            Continue as guest
+                                        </button>
+                                    </div>
+                                )}
                             </section>
                         </>
                     )}

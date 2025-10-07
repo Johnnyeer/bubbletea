@@ -76,7 +76,6 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 - `/api/auth/register`: registers members (email) or staff (username) accounts.
 - `/api/auth/login`: verifies credentials and returns a JWT with role claims.
 - Frontend caches the returned profile locally; there is no `/api/me` endpoint in the current backend build.
-- Dashboard shortcuts currently display local placeholder messaging until matching `/api/dashboard/*` endpoints are implemented.
 - Helpers include `session_scope()` for session management and `role_required()` for guardrails.
 
 ### Menu management (`backend/app/items.py`)
@@ -119,10 +118,10 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 
 ### Staff & manager tooling
 - `AdminPage.jsx`: dual-purpose page combining login/logout controls, inventory browsing, quantity adjustments, new item creation, and (for managers) staff account creation via `/api/admin/accounts`. Implement the API endpoint before enabling in production.
-- `CurrentOrdersPage.jsx`: live queue dashboard for staff; supports status transitions and deletions through `/api/orders/<id>`.
+- `CurrentOrdersPage.jsx`: live queue view for staff; supports status transitions and deletions through `/api/orders/<id>`.
 - `AnalyticsPage.jsx`: loads `/api/analytics/summary` and presents sales metrics plus popular options.
 - `SchedulingPage.jsx`: weekly shift planner backed by `/api/scheduling`, allowing claims and assignments.
-- `SessionPanel.jsx`: displays session metadata and quick links to role dashboards.
+- `SessionPanel.jsx`: displays session metadata.
 
 ### State & API interaction patterns
 - All fetch calls include JWT headers when available; error messages are surfaced via a shared `statusMessage` banner stored in `App.jsx`.
