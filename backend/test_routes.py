@@ -26,7 +26,6 @@ def test_routes():
         '/api/v1/auth/register',
         '/api/v1/auth/login', 
         '/api/v1/items',
-        '/api/v1/items/<int:item_id>',
         '/api/v1/items/<int:item_id>/quantity',
         '/api/v1/orders',
         '/api/v1/orders/<int:order_item_id>',

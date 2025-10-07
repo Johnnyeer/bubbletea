@@ -68,36 +68,3 @@ def create_team_account():
             "account_type": account_type,
             "role": role if account_type == "staff" else None
         }), 201
-
-@bp.get("/accounts")
-@jwt_required()
-@role_required("admin", "manager")
-def list_accounts():
-    """List all accounts for admin management."""
-    with session_scope() as session:
-        staff_accounts = session.execute(select(Staff)).scalars().all()
-        member_accounts = session.execute(select(Member)).scalars().all()
-        
-        accounts = []
-        
-        for staff in staff_accounts:
-            accounts.append({
-                "id": staff.id,
-                "username": staff.username,
-                "full_name": staff.full_name,
-                "account_type": "staff",
-                "role": staff.role,
-                "created_at": staff.created_at.isoformat() if staff.created_at else None
-            })
-        
-        for member in member_accounts:
-            accounts.append({
-                "id": member.id,
-                "username": member.username,
-                "full_name": member.full_name,
-                "account_type": "member",
-                "role": None,
-                "created_at": member.created_at.isoformat() if member.created_at else None
-            })
-        
-        return jsonify({"accounts": accounts})

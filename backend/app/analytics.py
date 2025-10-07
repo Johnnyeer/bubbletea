@@ -9,6 +9,7 @@ from .auth import _json_error, role_required
 from .customizations import extract_customization_labels
 from .db import SessionLocal
 from .models import MenuItem, OrderItem, OrderRecord, ScheduleShift, Staff
+from .time_utils import to_local_iso, current_local_datetime
 
 bp = Blueprint("analytics", __name__, url_prefix="/api/v1/analytics")
 
@@ -17,24 +18,11 @@ HOURS_VARIANCE_THRESHOLD = 2
 MAX_RECOMMENDED_WEEKLY_HOURS = 35
 
 
-def to_local_iso(value: datetime | None) -> str | None:
-    """Return a local ISO8601 string for the given datetime."""
-    if value is None or not isinstance(value, datetime):
-        return None
-    dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    try:
-        local_dt = dt.astimezone()
-    except (OSError, ValueError):
-        local_dt = dt
-    return local_dt.isoformat()
 
-
-def _current_local_datetime() -> datetime:
-    return datetime.now(timezone.utc).astimezone()
 
 
 def _current_local_date() -> date:
-    return _current_local_datetime().date()
+    return current_local_datetime().date()
 
 
 def _start_of_week(anchor: date) -> date:
@@ -314,7 +302,7 @@ def analytics_shifts():
             "average_hours": _round_hours(average_hours),
             "shift_length_hours": SHIFT_DURATION_HOURS,
             "recommended_max_hours": MAX_RECOMMENDED_WEEKLY_HOURS,
-            "generated_at": to_local_iso(_current_local_datetime()),
+            "generated_at": to_local_iso(current_local_datetime()),
         }
         if staff_entries:
             overview["max_hours"] = staff_entries[0]["total_hours"]

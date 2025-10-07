@@ -89,58 +89,6 @@ def create_item():
         return jsonify(_serialize(item)), 201
 
 
-@bp.get("/<int:item_id>")
-def retrieve_item(item_id: int):
-    with SessionLocal() as session:
-        item = session.get(MenuItem, item_id)
-        if not item:
-            return _json_error("item not found", 404)
-        return jsonify(_serialize(item))
-
-
-@bp.put("/<int:item_id>")
-@role_required("manager", "staff")
-def update_item(item_id: int):
-    data = request.get_json(silent=True) or {}
-
-    with SessionLocal() as session:
-        item = session.get(MenuItem, item_id)
-        if not item:
-            return _json_error("item not found", 404)
-
-        if "name" in data:
-            name = (data.get("name") or "").strip()
-            if not name:
-                return _json_error("name cannot be empty", 400)
-            duplicate = session.scalar(
-                select(MenuItem).where(MenuItem.name == name, MenuItem.id != item_id)
-            )
-            if duplicate:
-                return _json_error("item with that name already exists", 409)
-            item.name = name
-
-        if "price" in data:
-            try:
-                item.price = _parse_price(data.get("price"))
-            except ValueError as exc:
-                return _json_error(str(exc), 400)
-
-        if "category" in data:
-            raw_category = data.get("category")
-            category_value = str(raw_category or "").strip().lower()
-            if category_value not in ALLOWED_ITEM_CATEGORIES:
-                allowed = ", ".join(sorted(ALLOWED_ITEM_CATEGORIES))
-                return _json_error(f"category must be one of: {allowed}", 400)
-            item.category = category_value
-
-        if "is_active" in data:
-            item.is_active = bool(data.get("is_active"))
-
-        session.commit()
-        session.refresh(item)
-        return jsonify(_serialize(item))
-
-
 @bp.patch("/<int:item_id>/quantity")
 @role_required("manager")
 def adjust_quantity(item_id: int):

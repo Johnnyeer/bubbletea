@@ -31,10 +31,7 @@ def create_app():
     def health_check_v1():
         return jsonify({"status": "ok"})
 
-    @app.get("/api/protected")
-    @jwt_required()
-    def protected_route():
-        return jsonify({"ok": True})
+
 
     app.register_blueprint(admin_bp)
     app.register_blueprint(analytics_bp)
