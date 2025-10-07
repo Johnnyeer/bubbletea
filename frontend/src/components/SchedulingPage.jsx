@@ -91,57 +91,32 @@ const headerTextGroupStyle = {
     gap: 4,
 };
 
-const navControlsStyle = {
+const actionGroupStyle = {
     display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
+    justifyContent: "flex-end",
     gap: 8,
 };
 
-const navButtonStyle = {
-    border: "1px solid var(--tea-border)",
-    background: "#fff",
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    display: "grid",
-    placeItems: "center",
-    fontSize: 16,
-    cursor: "pointer",
-};
-
-const navButtonDisabledStyle = {
-    opacity: 0.45,
-    cursor: "not-allowed",
-};
-
-const todayButtonStyle = {
-
+const compactButtonStyle = {
     ...secondaryButtonStyle,
-
-    padding: "8px 16px",
-
+    padding: "8px 14px",
 };
-
-
 
 const createShiftButtonStyle = {
-
     ...primaryButtonStyle,
-
-    padding: "8px 16px",
-
+    padding: "10px 20px",
 };
 
-
+const refreshButtonStyle = {
+    ...secondaryButtonStyle,
+    padding: "8px 14px",
+};
 
 const tableWrapperStyle = {
-
     overflowX: "auto",
-
 };
-
-
-
 const scheduleTableStyle = {
     borderCollapse: "collapse",
     width: "100%",
@@ -416,16 +391,19 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         return startOfWeek(new Date());
     }, [weekStartIso]);
 
+    const todayStart = startOfDay(new Date());
+    const displayStartDate = resolvedWeekStart.getTime() < todayStart.getTime() ? todayStart : resolvedWeekStart;
+
     const upcomingDays = useMemo(() => {
         return Array.from({ length: 7 }, (_, offset) => {
-            const current = addDays(resolvedWeekStart, offset);
+            const current = addDays(displayStartDate, offset);
             return {
                 date: current,
                 iso: toLocalISODate(current),
                 label: formatDateLabel(current),
             };
         });
-    }, [resolvedWeekStart]);
+    }, [displayStartDate]);
 
     const shiftLookup = useMemo(() => {
         const lookup = new Map();
@@ -637,12 +615,10 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         );
     };
 
-    const rangeStartDate = resolvedWeekStart;
-    const rangeEndDate = upcomingDays.length > 0 ? addDays(resolvedWeekStart, upcomingDays.length - 1) : resolvedWeekStart;
+    const rangeStartDate = displayStartDate;
+    const rangeEndDate = upcomingDays.length > 0 ? addDays(displayStartDate, upcomingDays.length - 1) : displayStartDate;
     const weekRangeLabel = formatWeekRange(rangeStartDate, rangeEndDate);
-    const todayIso = toLocalISODate(new Date());
-    const todayWeekStart = startOfWeek(new Date());
-    const canGoToPreviousWeek = resolvedWeekStart.getTime() > todayWeekStart.getTime();
+    const todayIso = toLocalISODate(todayStart);
     const titleDescription = `Manage hourly shifts between ${SHIFT_SLOTS[0].window.split(" - ")[0]} and ${SHIFT_SLOTS[SHIFT_SLOTS.length - 1].window.split(" - ")[1]}.`;
 
     const handleTodayClick = () => {
@@ -662,14 +638,6 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         navigate?.("/admin");
     };
 
-    const handlePreviousWeek = () => {
-        if (!canGoToPreviousWeek) {
-            return;
-        }
-        const previousStart = addDays(resolvedWeekStart, -7);
-        setWeekStartIso(toLocalISODate(startOfWeek(previousStart)));
-    };
-
     const handleNextWeek = () => {
         const nextStart = addDays(resolvedWeekStart, 7);
         setWeekStartIso(toLocalISODate(startOfWeek(nextStart)));
@@ -683,58 +651,40 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                         <span style={weekSummaryTextStyle}>{weekRangeLabel}</span>
                         <span style={weekSummaryTextStyle}>{titleDescription}</span>
                     </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-                        <div style={navControlsStyle}>
-                            <button
-                                type="button"
-                                onClick={handleTodayClick}
-                                disabled={isLoading}
-                                style={{ ...todayButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
-                            >
-                                Today
-                            </button>
-                            <div style={navControlsStyle}>
-                                <button
-                                    type="button"
-                                    onClick={handlePreviousWeek}
-                                    disabled={!canGoToPreviousWeek || isLoading}
-                                    style={{
-                                        ...navButtonStyle,
-                                        ...(!canGoToPreviousWeek || isLoading ? navButtonDisabledStyle : {}),
-                                    }}
-                                >
-                                    {"<"}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleNextWeek}
-                                    disabled={isLoading}
-                                    style={{ ...navButtonStyle, ...(isLoading ? navButtonDisabledStyle : {}) }}
-                                >
-                                    {">"}
-                                </button>
-                            </div>
-                        </div>
+                    <div style={actionGroupStyle}>
                         <button
                             type="button"
-                            onClick={handleCreateShiftClick}
-                            disabled={!canManageAll}
-                            style={{
-                                ...createShiftButtonStyle,
-                                opacity: canManageAll ? 1 : 0.55,
-                                cursor: canManageAll ? "pointer" : "not-allowed",
-                            }}
+                            onClick={handleTodayClick}
+                            disabled={isLoading}
+                            style={{ ...compactButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
                         >
-                            Create shift
+                            Today
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleNextWeek}
+                            disabled={isLoading}
+                            style={{ ...compactButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
+                        >
+                            Next 7 days
                         </button>
                         <button
                             type="button"
                             onClick={() => loadShifts(weekStartIso)}
                             disabled={isLoading}
-                            style={{ ...primaryButtonStyle, padding: "10px 20px", opacity: isLoading ? 0.75 : 1, cursor: isLoading ? "wait" : "pointer" }}
+                            style={{ ...refreshButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
                         >
                             {isLoading ? "Refreshing..." : "Refresh"}
                         </button>
+                        {canManageAll && (
+                            <button
+                                type="button"
+                                onClick={handleCreateShiftClick}
+                                style={{ ...createShiftButtonStyle }}
+                            >
+                                Create shift
+                            </button>
+                        )}
                     </div>
                 </div>
                 {error && <div style={errorBannerStyle}>{error}</div>}
@@ -775,4 +725,3 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         </SystemLayout>
     );
 }
-

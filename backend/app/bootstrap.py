@@ -1,10 +1,11 @@
 """Database bootstrap utilities."""
+from datetime import date, timedelta
 from decimal import Decimal
 from sqlalchemy import inspect, select
 from werkzeug.security import generate_password_hash
 
 from .db import SessionLocal, engine
-from .models import Base, Staff, OrderItem, OrderRecord, MenuItem, Member
+from .models import Base, Staff, OrderItem, OrderRecord, MenuItem, Member, ScheduleShift
 from .orders import _archive_order
 
 SEED_MENU_ITEMS = [
@@ -99,6 +100,77 @@ def _seed_member_accounts() -> None:
         session.commit()
 
 
+
+
+SCHEDULE_SHIFT_PLAN = [
+    (
+        "admin",
+        (
+            (0, ("10:00", "11:00")),
+            (2, ("10:00",)),
+            (4, ("11:00",)),
+        ),
+    ),
+    (
+        "staff1",
+        (
+            (0, ("12:00", "13:00")),
+            (1, ("10:00", "11:00", "12:00")),
+            (3, ("14:00", "15:00")),
+        ),
+    ),
+    (
+        "staff2",
+        (
+            (1, ("13:00", "14:00")),
+            (2, ("12:00", "13:00")),
+            (4, ("10:00", "11:00")),
+        ),
+    ),
+]
+
+
+
+def _seed_schedule_shifts() -> None:
+    with SessionLocal() as session:
+        if session.scalar(select(ScheduleShift.id)):
+            return
+        staff_rows = session.execute(
+            select(Staff).where(Staff.is_active.is_(True))
+        ).scalars().all()
+        if not staff_rows:
+            return
+        staff_lookup = {staff.username.lower(): staff for staff in staff_rows}
+        today = date.today()
+        week_start = today - timedelta(days=today.weekday())
+        seed_start = week_start + timedelta(days=7)
+        for username, assignments in SCHEDULE_SHIFT_PLAN:
+            staff = staff_lookup.get(username.lower())
+            if not staff:
+                continue
+            for day_offset, shift_names in assignments:
+                shift_date = seed_start + timedelta(days=int(day_offset))
+                for shift_name in shift_names:
+                    normalized_shift = shift_name.strip()
+                    if not normalized_shift:
+                        continue
+                    existing_shift = session.scalar(
+                        select(ScheduleShift)
+                        .where(ScheduleShift.staff_id == staff.id)
+                        .where(ScheduleShift.shift_date == shift_date)
+                        .where(ScheduleShift.shift_name == normalized_shift)
+                    )
+                    if existing_shift:
+                        continue
+                    session.add(
+                        ScheduleShift(
+                            staff_id=staff.id,
+                            shift_date=shift_date,
+                            shift_name=normalized_shift,
+                        )
+                    )
+        session.commit()
+
 def _archive_completed_orders() -> None:
     """Move lingering completed order_items into order_records."""
     with SessionLocal() as session:
@@ -127,6 +199,7 @@ def bootstrap_database() -> None:
     _archive_completed_orders()
     _ensure_default_admin()
     _seed_staff_accounts()
+    _seed_schedule_shifts()
     _seed_member_accounts()
 
 
@@ -198,3 +271,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
