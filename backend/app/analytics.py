@@ -10,7 +10,7 @@ from .customizations import extract_customization_labels
 from .db import SessionLocal
 from .models import MenuItem, OrderItem, OrderRecord, ScheduleShift, Staff
 
-bp = Blueprint("analytics", __name__, url_prefix="/api/analytics")
+bp = Blueprint("analytics", __name__, url_prefix="/api/v1/analytics")
 
 SHIFT_DURATION_HOURS = 1
 HOURS_VARIANCE_THRESHOLD = 2

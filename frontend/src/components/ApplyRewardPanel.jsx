@@ -16,7 +16,7 @@ export default function ApplyRewardPanel({ system, session, onRewardApply }) {
                 headers.Authorization = `Bearer ${session.token}`;
             }
 
-            const response = await fetch('/api/rewards/code', {
+            const response = await fetch('/api/v1/rewards/code', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ code: rewardCode.trim() }),

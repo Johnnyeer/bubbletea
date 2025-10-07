@@ -8,7 +8,7 @@ from .auth import _json_error, role_required
 from .db import SessionLocal
 from .models import MenuItem
 
-bp = Blueprint("items", __name__, url_prefix="/api/items")
+bp = Blueprint("items", __name__, url_prefix="/api/v1/items")
 
 CURRENCY_STEP = Decimal("0.01")
 

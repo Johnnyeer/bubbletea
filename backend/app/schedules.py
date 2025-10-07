@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from .auth import _json_error, _parse_identity, role_required, session_scope
 from .models import ScheduleShift, SHIFT_NAMES, Staff
-bp = Blueprint("schedules", __name__, url_prefix="/api/schedule")
+bp = Blueprint("schedules", __name__, url_prefix="/api/v1/schedule")
 
 
 def current_local_datetime() -> datetime:

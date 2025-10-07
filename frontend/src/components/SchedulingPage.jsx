@@ -297,7 +297,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
             return;
         }
         try {
-            const response = await fetch("/api/schedule/staff", { headers });
+            const response = await fetch("/api/v1/schedule/staff", { headers });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(data.error || "Unable to load staff roster");
@@ -318,7 +318,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         setError("");
         try {
             const query = targetIso ? `?start_date=${encodeURIComponent(targetIso)}` : "";
-            const response = await fetch(`/api/schedule${query}`, { headers });
+            const response = await fetch(`/api/v1/schedule${query}`, { headers });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(data.error || "Unable to load schedule");
@@ -426,7 +426,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                 }
                 payload.staff_id = numericId;
             }
-            const response = await fetch("/api/schedule", {
+            const response = await fetch("/api/v1/schedule", {
                 method: "POST",
                 headers,
                 body: JSON.stringify(payload),
@@ -453,7 +453,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         setPendingKey(`remove-${shift.id}`);
         setError("");
         try {
-            const response = await fetch(`/api/schedule/${shift.id}`, {
+            const response = await fetch(`/api/v1/schedule/${shift.id}`, {
                 method: "DELETE",
                 headers,
             });

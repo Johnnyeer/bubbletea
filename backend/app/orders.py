@@ -6,64 +6,7 @@ from flask import Blueprint, request, jsonify
 from .models import MemberReward
 from sqlalchemy import select, func
 
-bp = Blueprint("orders", __name__, url_prefix="/api/orders")
-
-# Rewards endpoint for member drink count
-@bp.get("/rewards")
-def get_member_rewards():
-    account_type, account_id, _ = _get_identity(optional=True)
-    if account_type != "member" or not account_id:
-        return jsonify({"error": "Unauthorized"}), 403
-    with session_scope() as session:
-        # Count completed drinks for this member
-        count = session.execute(
-            select(func.sum(OrderRecord.qty)).where(OrderRecord.member_id == account_id)
-        ).scalar() or 0
-    return jsonify({"drink_count": int(count)})
-
-# Redeem reward endpoint
-@bp.post("/rewards/redeem")
-def redeem_member_reward():
-    account_type, account_id, _ = _get_identity(optional=True)
-    if account_type != "member" or not account_id:
-        return jsonify({"error": "Unauthorized"}), 403
-    data = request.get_json(force=True)
-    reward_type = data.get("type")
-    # Get drink count
-    with session_scope() as session:
-        count = session.execute(
-            select(func.sum(OrderRecord.qty)).where(OrderRecord.member_id == account_id)
-        ).scalar() or 0
-        # Check eligibility
-        # Check if already redeemed for this milestone
-        already_redeemed = session.execute(
-            select(MemberReward).where(
-                MemberReward.member_id == account_id,
-                MemberReward.reward_type == reward_type,
-            )
-        ).first()
-        if reward_type == "free_drink" and count >= 10:
-            if already_redeemed:
-                return jsonify({"error": "Reward already redeemed."}), 400
-            session.add(MemberReward(
-                member_id=account_id,
-                reward_type=reward_type,
-                status="pending"
-            ))
-            session.commit()
-            return jsonify({"success": True})
-        elif reward_type == "free_addon" and count >= 5:
-            if already_redeemed:
-                return jsonify({"error": "Reward already redeemed."}), 400
-            session.add(MemberReward(
-                member_id=account_id,
-                reward_type=reward_type,
-                status="pending"
-            ))
-            session.commit()
-            return jsonify({"success": True})
-        else:
-            return jsonify({"error": "Not eligible for this reward."}), 400
+bp = Blueprint("orders", __name__, url_prefix="/api/v1/orders")
 """Order management endpoints."""
 import json
 from decimal import Decimal, InvalidOperation
@@ -71,10 +14,10 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt, get_jwt_identity, verify_jwt_in_request
+
 from sqlalchemy import select
 
-from .auth import _json_error, _parse_identity, session_scope
+from .auth import role_required, session_scope, _parse_identity, _get_identity, _json_error
 from .customizations import deserialize_customizations, extract_inventory_reservations, normalize_customizations
 from .models import Member, MenuItem, OrderItem, OrderRecord, ORDER_STATES
 ACTIVE_ORDER_STATES = ("received", "preparing")
@@ -247,21 +190,6 @@ def _serialize_completed_record(record: OrderRecord, menu_item: MenuItem | None 
         "member_name": member.full_name if member else None,
         "options": options_payload,
     }
-
-def _get_identity(optional: bool = True):
-    try:
-        verify_jwt_in_request(optional=optional)
-    except Exception:
-        if optional:
-            return None, None, {}
-        raise
-    identity = get_jwt_identity()
-    claims = get_jwt() or {}
-    if not identity:
-        return None, None, claims
-    account_type, account_id = _parse_identity(identity)
-    return account_type, account_id, claims
-
 
 def _coerce_decimal(value, fallback: Decimal) -> Decimal:
     if value is None:

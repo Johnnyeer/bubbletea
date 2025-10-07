@@ -26,9 +26,9 @@ SEED_STAFF_ACCOUNTS = [
 ]
 
 SEED_MEMBER_ACCOUNTS = [
-    {"email": "member1@example.com", "full_name": "Member One"},
-    {"email": "member2@example.com", "full_name": "Member Two"},
-    {"email": "member3@example.com", "full_name": "Member Three"},
+    {"username": "member1", "email": "member1@example.com", "full_name": "Member One"},
+    {"username": "member2", "email": "member2@example.com", "full_name": "Member Two"},
+    {"username": "member3", "email": "member3@example.com", "full_name": "Member Three"},
 ]
 
 
@@ -88,10 +88,11 @@ def _seed_staff_accounts() -> None:
 def _seed_member_accounts() -> None:
     with SessionLocal() as session:
         for seed in SEED_MEMBER_ACCOUNTS:
-            existing = session.scalar(select(Member).where(Member.email == seed["email"]))
+            existing = session.scalar(select(Member).where(Member.username == seed["username"]))
             if existing:
                 continue
             member = Member(
+                username=seed["username"],
                 email=seed["email"],
                 password_hash=generate_password_hash("admin"),
                 full_name=seed["full_name"],

@@ -24,10 +24,12 @@ class Member(Base):
     __tablename__ = "members"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     joined_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -40,6 +42,7 @@ class Staff(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), default="staff", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     hired_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -101,10 +104,14 @@ class MemberReward(Base):
     __tablename__ = "member_rewards"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    member_id: Mapped[int] = mapped_column(ForeignKey("members.id", ondelete="CASCADE"), nullable=False)
-    reward_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'free_drink', 'free_addon'
+    member_id: Mapped[int] = mapped_column(ForeignKey("members.id", ondelete="CASCADE"), nullable=True)
+    reward_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 'free_drink', 'code_discount', etc.
+    reward_code: Mapped[str | None] = mapped_column(String(50))  # For reward codes like "WELCOME10"
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)  # 'pending', 'used'
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    discount_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal('0.00'), nullable=False)
+    discount_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(255))  # Human readable description
+    redeemed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     used_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
 
     member: Mapped["Member"] = relationship("Member")

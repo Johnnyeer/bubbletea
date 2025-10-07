@@ -95,7 +95,7 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
     useEffect(() => {
         setIsLoading(true);
         setError("");
-        fetch("/api/items")
+        fetch("/api/v1/items")
             .then(async response => {
                 const data = await response.json().catch(() => []);
                 if (!response.ok) {

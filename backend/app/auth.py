@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from .db import SessionLocal
 from .models import Member, Staff
 
-bp = Blueprint("auth", __name__, url_prefix="/api")
+bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
 def _json_error(msg, code=400):
     return jsonify({"error": msg}), code
@@ -43,6 +43,22 @@ def _parse_identity(identity):
     except ValueError:
         account_id = None
     return account_type, account_id
+
+def _get_identity(optional: bool = True):
+    """Extract account type and ID from JWT token."""
+    from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
+    try:
+        verify_jwt_in_request(optional=optional)
+    except Exception:
+        if optional:
+            return None, None, {}
+        raise
+    identity = get_jwt_identity()
+    claims = get_jwt() or {}
+    if not identity:
+        return None, None, claims
+    account_type, account_id = _parse_identity(identity)
+    return account_type, account_id, claims
 
 def role_required(*roles):
     allowed_roles = {role.strip().lower() for role in roles if role}
@@ -89,7 +105,7 @@ def role_required(*roles):
 
     return decorator
 
-@bp.post("/auth/register")
+@bp.post("/register")
 def register():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
@@ -158,7 +174,7 @@ def register():
     finally:
         db.close()
 
-@bp.post("/auth/login")
+@bp.post("/login")
 def login():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()

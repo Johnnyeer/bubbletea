@@ -78,7 +78,7 @@ export default function App() {
     const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
 
     useEffect(() => {
-        fetch("/api/health")
+        fetch("/api/v1/health")
             .then(response => response.json())
             .then(setHealth)
             .catch(() => setHealth({ status: "unknown" }));
@@ -125,7 +125,7 @@ export default function App() {
         event.preventDefault();
         setStatusMessage("Signing in...");
 
-        fetch("/api/auth/login", {
+        fetch("/api/v1/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(loginForm),
@@ -242,7 +242,7 @@ export default function App() {
             headers.Authorization = "Bearer " + token;
         }
 
-        fetch("/api/orders", {
+        fetch("/api/v1/orders", {
             method: "POST",
             headers,
             body: JSON.stringify({ items: cartItems }),
@@ -274,7 +274,7 @@ export default function App() {
         }
         setIsRefreshingOrders(true);
         const headers = token ? { Authorization: "Bearer " + token } : {};
-        let url = "/api/orders";
+        let url = "/api/v1/orders";
         if (!token) {
             const lookupIds = recentOrderItems
                 .map(item => {
@@ -335,7 +335,7 @@ export default function App() {
             throw new Error(message);
         }
         setStatusMessage("Creating team account...");
-        const response = await fetch("/api/admin/accounts", {
+        const response = await fetch("/api/v1/admin/accounts", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

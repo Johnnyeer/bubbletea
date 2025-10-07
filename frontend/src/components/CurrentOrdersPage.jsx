@@ -137,7 +137,7 @@ export default function CurrentOrdersPage({ system, session }) {
         if (!isStaff) return;
         setIsLoading(true);
         setError("");
-        fetch("/api/orders", { headers })
+        fetch("/api/v1/orders", { headers })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
@@ -191,7 +191,7 @@ export default function CurrentOrdersPage({ system, session }) {
         setPendingUpdateId(orderId);
         setError("");
         try {
-            const response = await fetch(`/api/orders/${orderId}`, {
+            const response = await fetch(`/api/v1/orders/${orderId}`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -232,7 +232,7 @@ export default function CurrentOrdersPage({ system, session }) {
         setPendingDeleteId(orderId);
         setError("");
         try {
-            const response = await fetch(`/api/orders/${orderId}`, {
+            const response = await fetch(`/api/v1/orders/${orderId}`, {
                 method: "DELETE",
                 headers,
             });

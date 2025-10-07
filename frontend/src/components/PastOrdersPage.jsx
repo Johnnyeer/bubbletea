@@ -148,7 +148,7 @@ export default function PastOrdersPage({ system, session }) {
         }
         setIsLoading(true);
         setError("");
-        fetch("/api/orders", { headers })
+        fetch("/api/v1/orders", { headers })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {

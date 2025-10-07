@@ -157,7 +157,7 @@ const formatWeekRange = (start, end) => {
         }
         const startLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(startDate);
         const endLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(endDate);
-        return `${startLabel} – ${endLabel}`;
+        return `${startLabel} ï¿½ ${endLabel}`;
     } catch {
         return "";
     }
@@ -263,7 +263,7 @@ export default function AnalyticsPage({ system, session }) {
         }
         setIsLoading(true);
         setError("");
-        fetch("/api/analytics/summary", { headers: { ...headers, Accept: "application/json" } })
+        fetch("/api/v1/analytics/summary", { headers: { ...headers, Accept: "application/json" } })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) {
@@ -293,7 +293,7 @@ export default function AnalyticsPage({ system, session }) {
             const targetWeek = weekStartISO || fallbackWeek || currentWeekStart;
             setIsLoadingShifts(true);
             setShiftError("");
-            fetch(`/api/analytics/shifts?week_start=${targetWeek}`, { headers: { ...headers, Accept: "application/json" } })
+            fetch(`/api/v1/analytics/shifts?week_start=${targetWeek}`, { headers: { ...headers, Accept: "application/json" } })
                 .then(async response => {
                     const data = await response.json().catch(() => ({}));
                     if (!response.ok) {

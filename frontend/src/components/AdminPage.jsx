@@ -117,7 +117,7 @@ export default function AdminPage({
         setIsLoadingInventory(true);
         setInventoryError("");
         const headers = authToken ? { Authorization: "Bearer " + authToken } : {};
-        fetch("/api/items", { headers })
+        fetch("/api/v1/items", { headers })
             .then(async response => {
                 const data = await response.json().catch(() => []);
                 if (!response.ok) {
@@ -194,7 +194,7 @@ export default function AdminPage({
             if (authToken) {
                 headers.Authorization = "Bearer " + authToken;
             }
-            const response = await fetch(`/api/items/${itemId}/quantity`, {
+            const response = await fetch(`/api/v1/items/${itemId}/quantity`, {
                 method: "PATCH",
                 headers,
                 body: JSON.stringify({ delta }),
@@ -260,7 +260,7 @@ export default function AdminPage({
                 price: Math.round(priceValue * 100) / 100,
                 quantity: quantityValue,
             };
-            const response = await fetch("/api/items", {
+            const response = await fetch("/api/v1/items", {
                 method: "POST",
                 headers,
                 body: JSON.stringify(payload),
@@ -318,7 +318,7 @@ export default function AdminPage({
         setNewItemMessage("");
         try {
             const headers = authToken ? { Authorization: "Bearer " + authToken } : {};
-            const response = await fetch(`/api/items/${itemId}`, { method: "DELETE", headers });
+            const response = await fetch(`/api/v1/items/${itemId}`, { method: "DELETE", headers });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(data.error || "Unable to remove item");

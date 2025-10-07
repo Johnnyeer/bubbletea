@@ -56,7 +56,7 @@ export default function RewardPage({ system, session, navigate }) {
                 headers.Authorization = `Bearer ${session.token}`;
             }
 
-            const response = await fetch('/api/orders/rewards', { headers });
+            const response = await fetch('/api/v1/rewards', { headers });
             const data = await response.json().catch(() => ({}));
             
             if (!response.ok) {
@@ -90,7 +90,7 @@ export default function RewardPage({ system, session, navigate }) {
                 throw new Error('Reward not found');
             }
 
-            const response = await fetch('/api/orders/rewards/redeem', {
+            const response = await fetch('/api/v1/rewards/redeem', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ type: reward.type }),
