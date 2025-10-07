@@ -10,11 +10,12 @@ import SchedulingPage from "./components/SchedulingPage.jsx";
 import CurrentOrdersPage from "./components/CurrentOrdersPage.jsx";
 import AnalyticsPage from "./components/AnalyticsPage.jsx";
 import PastOrdersPage from "./components/PastOrdersPage.jsx";
+import SystemLayout from "./components/SystemLayout.jsx";
 
 const CUSTOMER_NAVIGATION = [
     { to: "/order", label: "Member Log In" },
     { to: "/menu", label: "Menu" },
-    { to: "/cart", label: "Order" },
+    { to: "/cart", label: "Cart" },
     { to: "/order-summary", label: "Order Summary" },
     { to: "/past-orders", label: "Past Orders", requiresAuth: true },
 ];
@@ -23,8 +24,8 @@ const STAFF_NAVIGATION = [
     { to: "/", label: "Home" },
     { to: "/orders", label: "Current Orders" },
     { to: "/analytics", label: "Analytics" },
-    { to: "/admin", label: "Inventory" },
-    { to: "/scheduling", label: "Schedule" },
+    { to: "/inventory", label: "Inventory" },
+    { to: "/schedule", label: "Schedule" },
 ];
 
 const EMPTY_LOGIN = { email: "", username: "", password: "" };
@@ -360,14 +361,16 @@ export default function App() {
     switch (currentPath) {
         case "/order":
             return (
-                <OrderPage
-                    navigate={navigate}
-                    loginForm={loginForm}
-                    statusMessage={statusMessage}
-                    onLoginChange={handleLoginChange}
-                    onLoginSubmit={handleOrderLoginSubmit}
-                    onGuestCheckout={handleGuestCheckout}
-                />
+                <SystemLayout system={systemProps}>
+                    <OrderPage
+                        navigate={navigate}
+                        loginForm={loginForm}
+                        statusMessage={statusMessage}
+                        onLoginChange={handleLoginChange}
+                        onLoginSubmit={handleOrderLoginSubmit}
+                        onGuestCheckout={handleGuestCheckout}
+                    />
+                </SystemLayout>
             );
         case "/menu":
             return (
@@ -378,7 +381,11 @@ export default function App() {
                 />
             );
         case "/register":
-            return <RegisterPage navigate={navigate} />;
+            return (
+                <SystemLayout system={systemProps}>
+                    <RegisterPage navigate={navigate} />
+                </SystemLayout>
+            );
         case "/cart":
             return (
                 <CartPage
@@ -389,7 +396,7 @@ export default function App() {
                     isCheckingOut={isSubmittingOrder}
                 />
             );
-        case "/scheduling":
+        case "/schedule":
             return (
                 <SchedulingPage
                     system={systemProps}

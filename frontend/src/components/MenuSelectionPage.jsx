@@ -346,8 +346,7 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
                         <h2 style={{ margin: 0 }}>Order Menu</h2>
                         <p style={{ margin: "6px 0 0 0", color: "var(--tea-muted)" }}>Customize your drink and add it to the cart.</p>
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                        <button type="button" onClick={() => navigate("/order")} style={secondaryButtonStyle}>Back</button>
+                    <div>
                         <button type="button" onClick={() => navigate("/cart")} style={primaryButtonStyle}>Go to Cart</button>
                     </div>
                 </div>

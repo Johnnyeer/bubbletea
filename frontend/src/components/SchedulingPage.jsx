@@ -91,6 +91,19 @@ const headerTextGroupStyle = {
     gap: 4,
 };
 
+const weekRangeNavigationStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+};
+
+const weekNavigationButtonStyle = {
+    ...secondaryButtonStyle,
+    padding: "6px 10px",
+    lineHeight: 1,
+    fontSize: "1rem",
+};
+
 const actionGroupStyle = {
     display: "flex",
     flexWrap: "wrap",
@@ -309,7 +322,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
             return;
         }
         try {
-            const response = await fetch("/api/scheduling/staff", { headers });
+            const response = await fetch("/api/schedule/staff", { headers });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(data.error || "Unable to load staff roster");
@@ -337,7 +350,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                 return;
             }
             const query = targetIso ? `?start_date=${encodeURIComponent(targetIso)}` : "";
-            const response = await fetch(`/api/scheduling${query}`, { headers });
+            const response = await fetch(`/api/schedule${query}`, { headers });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(data.error || "Unable to load schedule");
@@ -445,7 +458,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                 }
                 payload.staff_id = numericId;
             }
-            const response = await fetch("/api/scheduling", {
+            const response = await fetch("/api/schedule", {
                 method: "POST",
                 headers,
                 body: JSON.stringify(payload),
@@ -472,7 +485,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         setPendingKey(`remove-${shift.id}`);
         setError("");
         try {
-            const response = await fetch(`/api/scheduling/${shift.id}`, {
+            const response = await fetch(`/api/schedule/${shift.id}`, {
                 method: "DELETE",
                 headers,
             });
@@ -635,7 +648,12 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
             updateStatus?.("Only managers can create shifts.");
             return;
         }
-        navigate?.("/admin");
+        navigate?.("/inventory");
+    };
+
+    const handlePreviousWeek = () => {
+        const previousStart = addDays(resolvedWeekStart, -7);
+        setWeekStartIso(toLocalISODate(startOfWeek(previousStart)));
     };
 
     const handleNextWeek = () => {
@@ -648,7 +666,27 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                 <div style={headerRowStyle}>
                     <div style={headerTextGroupStyle}>
                         <h2 style={{ margin: 0 }}>Weekly Schedule</h2>
-                        <span style={weekSummaryTextStyle}>{weekRangeLabel}</span>
+                        <div style={weekRangeNavigationStyle}>
+                            <button
+                                type="button"
+                                onClick={handlePreviousWeek}
+                                disabled={isLoading}
+                                aria-label="Previous week"
+                                style={{ ...weekNavigationButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
+                            >
+                                {"\u2190"}
+                            </button>
+                            <span style={weekSummaryTextStyle}>{weekRangeLabel}</span>
+                            <button
+                                type="button"
+                                onClick={handleNextWeek}
+                                disabled={isLoading}
+                                aria-label="Next week"
+                                style={{ ...weekNavigationButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
+                            >
+                                {"\u2192"}
+                            </button>
+                        </div>
                         <span style={weekSummaryTextStyle}>{titleDescription}</span>
                     </div>
                     <div style={actionGroupStyle}>
@@ -659,14 +697,6 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                             style={{ ...compactButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
                         >
                             Today
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleNextWeek}
-                            disabled={isLoading}
-                            style={{ ...compactButtonStyle, opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "wait" : "pointer" }}
-                        >
-                            Next 7 days
                         </button>
                         <button
                             type="button"

@@ -56,7 +56,7 @@ export default function AdminPage({
     const userRole = typeof user?.role === "string" ? user.role.toLowerCase() : "";
     const isManager = Boolean(isAuthenticated && userRole === "manager");
     const canViewInventory = Boolean(isAuthenticated && (userRole === "staff" || userRole === "manager"));
-    const isInventoryView = system?.currentPath === "/admin";
+    const isInventoryView = system?.currentPath === "/inventory";
     const shouldShowInventory = Boolean(canViewInventory && isInventoryView);
     const canManageInventory = isManager;
     const authToken = session?.token || "";

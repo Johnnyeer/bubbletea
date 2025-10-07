@@ -18,20 +18,22 @@ export default function SessionPanel({ isAuthenticated, user, onLoadDashboard, d
                         {identifierLabel}: {identifierValue}
                     </p>
                     <p>Role: {user.role}</p>
-                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
-                        <button onClick={() => onLoadDashboard("customer")} style={pillButtonStyle}>
-                            Customer dashboard
-                        </button>
-                        {(role === "staff" || role === "manager") && (
-                            <button onClick={() => onLoadDashboard("staff")} style={pillButtonStyle}>
-                                Staff dashboard
-                            </button>
-                        )}
-                        {role === "manager" && (
-                            <button onClick={() => onLoadDashboard("manager")} style={pillButtonStyle}>
-                                Manager dashboard
-                            </button>
-                        )}
+                    <div style={{ marginTop: 8 }}>
+                        <label htmlFor="dashboard-select" style={{ fontWeight: 600, marginRight: 8 }}>Dashboard:</label>
+                        <select
+                            id="dashboard-select"
+                            style={{ padding: "8px 18px", borderRadius: 999, fontWeight: 500 }}
+                            onChange={e => onLoadDashboard(e.target.value)}
+                            defaultValue={role === "manager" ? "manager" : role === "staff" ? "staff" : "customer"}
+                        >
+                            <option value="customer">Customer dashboard</option>
+                            {(role === "staff" || role === "manager") && (
+                                <option value="staff">Staff dashboard</option>
+                            )}
+                            {role === "manager" && (
+                                <option value="manager">Manager dashboard</option>
+                            )}
+                        </select>
                     </div>
                 </div>
             ) : (

@@ -71,11 +71,7 @@ export default function CartPage({ system, cartItems = [], navigate, onCheckout,
                             Review your blends before completing checkout.
                         </p>
                     </div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <button type="button" onClick={() => navigate("/menu")} style={secondaryButtonStyle}>
-                            Back to Menu
-                        </button>
-                    </div>
+                    {/* Navigation button removed for streamlined UI */}
                 </div>
 
                 {(cartItems || []).length === 0 ? (
