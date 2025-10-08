@@ -18,9 +18,6 @@ HOURS_VARIANCE_THRESHOLD = 2
 MAX_RECOMMENDED_WEEKLY_HOURS = 35
 
 
-
-
-
 def _current_local_date() -> date:
     return current_local_datetime().date()
 

@@ -1,16 +1,60 @@
-# React + Vite
+# Bubble Tea Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React-based frontend for the Bubble Tea Management System.
 
-Currently, two official plugins are available:
+## Tech Stack
+- **React 18** with hooks
+- **Vite** for fast development and building
+- **CSS-in-JS** styling approach
+- **Multi-session authentication** system
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Development
 
-## React Compiler
+### Quick Start
+```bash
+npm install
+npm run dev
+```
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+### Available Scripts
+```bash
+npm run dev      # Start Vite dev server (localhost:5173)
+npm run build    # Build for production
+npm run preview  # Preview production build
+npm run format   # Format code
+```
 
-## Expanding the ESLint configuration
+### Key Features
+- **Multi-Session Auth**: Support for concurrent user sessions
+- **Role-Based UI**: Different interfaces for customers, staff, and managers  
+- **Real-time Updates**: Live order status and queue management
+- **Responsive Design**: Works on desktop and mobile devices
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### API Integration
+The frontend communicates with the Flask backend API:
+- **Base URL**: `/api/v1/`
+- **Proxy Config**: Vite dev server proxies API calls to `localhost:8000`
+- **Authentication**: JWT tokens managed by sessionManager utility
+
+### Component Architecture
+```
+src/
+├── components/           # React components
+│   ├── App.jsx          # Main app with routing
+│   ├── AdminPage.jsx    # Manager interface
+│   ├── OrderPage.jsx    # Customer ordering
+│   ├── SchedulingPage.jsx # Staff scheduling
+│   └── ...
+├── utils/
+│   └── sessionManager.js # Multi-session authentication
+├── themes.js            # UI theming
+└── main.jsx            # Entry point
+```
+
+### Styling
+Uses CSS-in-JS with shared style objects in `components/styles.js`:
+- Consistent design system
+- Theme support
+- Responsive breakpoints
+
+For detailed development information, see [../docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md)

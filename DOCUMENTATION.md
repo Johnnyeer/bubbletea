@@ -1,10 +1,12 @@
-# Bubble Tea Management System Overview
+# Technical Architecture Overview
 
-## High-Level Architecture
-- The project is split into a Flask backend (`backend/app`) that exposes a REST-style API and a React single-page frontend (`frontend/src`).
-- SQLite is the default datastore; connection settings are managed in `backend/app/db.py` and persisted under `data/app.db`.
-- Docker support is provided through `docker-compose.yml`, which builds the API (exposed on port 8000) and serves the compiled frontend through Nginx (port 80).
-- JSON Web Tokens (JWT) secure protected endpoints. Authentication and authorization are role-based (`customer`, `staff`, `manager`).
+> **Note:** This document contains detailed technical information. For quick start and general information, see [README.md](./README.md)
+
+## System Architecture
+- **Backend**: Flask REST API with SQLAlchemy ORM and SQLite database
+- **Frontend**: React SPA with Vite build system and Nginx serving
+- **Authentication**: JWT tokens with role-based access control (customer/staff/manager)
+- **Deployment**: Docker Compose orchestration with persistent data volumes
 
 ### Component Diagram
 
@@ -73,35 +75,44 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 - `backend/app/db.py` centralizes the SQLAlchemy engine/session factory, enforces SQLite foreign keys, and expands relative paths inside the project.
 
 ### Authentication & user management (`backend/app/auth.py`)
-- `/api/auth/register`: registers members (email) or staff (username) accounts.
-- `/api/auth/login`: verifies credentials and returns a JWT with role claims.
+- `/api/v1/auth/register`: registers members (email) or staff (username) accounts.
+- `/api/v1/auth/login`: verifies credentials and returns a JWT with role claims.
 - Frontend caches the returned profile locally; there is no `/api/me` endpoint in the current backend build.
 - Helpers include `session_scope()` for session management and `role_required()` for guardrails.
 
 ### Menu management (`backend/app/items.py`)
-- `/api/items` (GET): lists all menu entries sorted by category/name.
-- `/api/items` (POST): manager-only create flow with validation of price, category, and quantity.
-- `/api/items/<id>` (GET/PUT/DELETE): retrieve, update, and remove items; update routes enforce unique names and category whitelist.
-- `/api/items/<id>/quantity` (PATCH): manager-only stock adjustments by integer delta.
+- `/api/v1/items` (GET): lists all menu entries sorted by category/name.
+- `/api/v1/items` (POST): manager-only create flow with validation of price, category, and quantity.
+- `/api/v1/items/<id>` (DELETE): manager-only item removal.
+- `/api/v1/items/<id>/quantity` (PATCH): manager-only stock adjustments by integer delta.
 
 ### Order lifecycle (`backend/app/orders.py`)
-- Exposes a rich `/api/orders` blueprint for creating, listing, updating, and deleting order items.
-- Creation (`POST /api/orders`): validates menu selections, calculates totals, persists cart-line items, and decrements stock for the base drink plus reserved add-ons.
-- Listing (`GET /api/orders`): returns either the live queue or completed history, with optional filters (`ids`, `status`, `member_id`).
-- Status updates (`PATCH /api/orders/<id>`): staff move orders between states; when marked `complete`, the order row is copied into `OrderRecord` history and removed from the live table.
-- Deletion (`DELETE /api/orders/<id>`): restores reserved inventory counts for the base drink and add-ons.
+- Exposes a rich `/api/v1/orders` blueprint for creating, listing, updating, and deleting order items.
+- Creation (`POST /api/v1/orders`): validates menu selections, calculates totals, persists cart-line items, and decrements stock for the base drink plus reserved add-ons.
+- Listing (`GET /api/v1/orders`): returns either the live queue or completed history, with optional filters (`ids`, `status`, `member_id`).
+- Status updates (`PATCH /api/v1/orders/<id>`): staff move orders between states; when marked `complete`, the order row is copied into `OrderRecord` history and removed from the live table.
+- Deletion (`DELETE /api/v1/orders/<id>`): restores reserved inventory counts for the base drink and add-ons.
 - Helpers in `backend/app/customizations.py` normalize customization payloads, deserialize stored JSON, and translate it into inventory reservation metadata.
 
 ### Scheduling (`backend/app/schedules.py`)
-- `/api/scheduling` (GET): staff-only weekly view of upcoming shifts.
-- `/api/scheduling` (POST): staff can claim their own shifts; managers/admin may assign any staff member.
-- `/api/scheduling/<id>` (DELETE): removes a shift (self-service for staff, full control for managers).
+- `/api/v1/schedule` (GET): staff-only weekly view of upcoming shifts.
+- `/api/v1/schedule` (POST): staff can claim their own shifts; managers/admin may assign any staff member.
+- `/api/v1/schedule/<id>` (DELETE): removes a shift (self-service for staff, full control for managers).
+- `/api/v1/schedule/staff` (GET): manager-only list of all active staff for assignment.
 
 ### Analytics (`backend/app/analytics.py`)
-- `/api/analytics/summary`: manager/staff endpoint aggregating `OrderRecord` data to report total sales, pending queue size, and most popular teas, milks, and add-ons.
+- `/api/v1/analytics/summary`: manager/staff endpoint aggregating `OrderRecord` data to report total sales, pending queue size, and most popular teas, milks, and add-ons.
+- `/api/v1/analytics/shifts`: manager/staff endpoint providing weekly shift analytics with staff workload balancing insights.
+
+### Admin & Rewards System
+- `/api/v1/admin/accounts` (POST): manager-only endpoint for creating staff/member accounts.
+- `/api/v1/rewards` (GET): member reward status and available benefits.
+- `/api/v1/rewards/redeem` (POST): member reward redemption for free drinks/add-ons.
+- `/api/v1/rewards/code` (POST): apply promotional reward codes for discounts.
 
 ### Supporting utilities
 - `backend/app/analytics.py` & `customizations.py`: transform completed orders into analytics-friendly counters.
+- `backend/app/admin.py` & `rewards.py`: handle account management and loyalty program functionality.
 
 ## Frontend Application (React)
 ### Core layout & routing
@@ -110,23 +121,24 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 
 ### Customer experience
 - `OrderPage.jsx`: login form with optional guest checkout.
-- `RegisterPage.jsx`: membership sign-up integrated with `/api/auth/register`.
-- `MenuSelectionPage.jsx`: fetches `/api/items`, groups teas/milks/add-ons, and lets shoppers assemble drinks with calculated totals.
+- `RegisterPage.jsx`: membership sign-up integrated with `/api/v1/auth/register`.
+- `MenuSelectionPage.jsx`: fetches `/api/v1/items`, groups teas/milks/add-ons, and lets shoppers assemble drinks with calculated totals.
 - `CartPage.jsx`: summarizes cart contents and invokes checkout.
 - `OrderSummaryPage.jsx`: shows recently placed orders and polls for status updates.
-- `PastOrdersPage.jsx`: authenticated history view calling `/api/orders` and filtering for completed records.
+- `PastOrdersPage.jsx`: authenticated history view calling `/api/v1/orders` and filtering for completed records.
+- `RewardPage.jsx`: member loyalty program interface for viewing and redeeming rewards.
 
 ### Staff & manager tooling
-- `AdminPage.jsx`: dual-purpose page combining login/logout controls, inventory browsing, quantity adjustments, new item creation, and (for managers) staff account creation via `/api/admin/accounts`. Implement the API endpoint before enabling in production.
-- `CurrentOrdersPage.jsx`: live queue view for staff; supports status transitions and deletions through `/api/orders/<id>`.
-- `AnalyticsPage.jsx`: loads `/api/analytics/summary` and presents sales metrics plus popular options.
-- `SchedulingPage.jsx`: weekly shift planner backed by `/api/scheduling`, allowing claims and assignments.
-- `SessionPanel.jsx`: displays session metadata.
+- `AdminPage.jsx`: dual-purpose page combining login/logout controls, inventory browsing, quantity adjustments, new item creation, and (for managers) staff account creation via `/api/v1/admin/accounts`.
+- `CurrentOrdersPage.jsx`: live queue view for staff; supports status transitions and deletions through `/api/v1/orders/<id>`.
+- `AnalyticsPage.jsx`: loads `/api/v1/analytics/summary` and `/api/v1/analytics/shifts` presenting sales metrics plus staff scheduling insights.
+- `SchedulingPage.jsx`: weekly shift planner backed by `/api/v1/schedule`, allowing claims and assignments with staff management.
+- `SessionPanel.jsx`: displays session metadata and switching capabilities.
 
 ### State & API interaction patterns
 - All fetch calls include JWT headers when available; error messages are surfaced via a shared `statusMessage` banner stored in `App.jsx`.
-- `App.jsx` persists the JWT and last known profile to `localStorage` so the session survives refreshes even without `/api/me`. Clearing the token also clears the cached profile.
-- Order submission serializes cart items into the API format expected by `POST /api/orders`, and success responses hydrate the order summary view.
+- `App.jsx` persists the JWT and last known profile to `localStorage` so the session survives refreshes. Clearing the token also clears the cached profile.
+- Order submission serializes cart items into the API format expected by `POST /api/v1/orders`, and success responses hydrate the order summary view.
 
 ## Order Journey Walkthrough
 1. A customer (guest or member) composes drinks in the menu builder; each selection captures base drink, milk option, and add-ons.
@@ -162,9 +174,58 @@ Defined in `backend/app/models.py` using SQLAlchemy.
 ### Default credentials
 - Manager bootstrap account: username `admin`, password `admin` (change `JWT_SECRET` and account credentials in production).
 
-## Extending or Integrating
-- Add new API routes within their respective blueprints (e.g., analytics enhancements in `backend/app/analytics.py`).
-- Keep the data model in sync with migration helpers inside `create_app()` when adding columns so existing SQLite databases are upgraded automatically.
-- Frontend pages expect JSON structures documented above; when API responses change, update fetch handling in `App.jsx` and the relevant component.
+## Documentation Structure
+
+This repository follows conventional documentation practices with organized, specialized guides:
+
+### 📖 **Core Documentation**
+- **[README.md](./README.md)** - Project overview, quick start, and essential information
+- **[CHANGELOG.md](./CHANGELOG.md)** - Version history and release notes
+- **[LICENSE](./LICENSE)** - MIT license information
+
+### 📚 **Detailed Guides** (`/docs/`)
+- **[API.md](./docs/API.md)** - Complete API reference with examples
+- **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Production deployment and configuration  
+- **[DEVELOPMENT.md](./docs/DEVELOPMENT.md)** - Development setup and coding standards
+- **[MULTI_SESSION.md](./docs/MULTI_SESSION.md)** - Advanced authentication system
+
+### 📋 **Historical Records**
+- **[API_IMPROVEMENTS.md](./API_IMPROVEMENTS.md)** - API standardization project history
+
+---
+
+## Quick Reference
+
+### 🚀 **Getting Started**
+```bash
+git clone https://github.com/Johnnyeer/bubbletea.git
+cd bubbletea
+docker-compose up -d
+```
+Access: http://localhost (Frontend) | http://localhost:8000 (API)
+
+### 🔌 **API Overview**  
+- **Base URL**: `/api/v1/`
+- **Authentication**: JWT Bearer tokens
+- **Endpoints**: 21 fully implemented routes
+- **Documentation**: [docs/API.md](./docs/API.md)
+
+### 🏗️ **Development**
+```bash
+# Backend
+cd backend && python -m app
+
+# Frontend  
+cd frontend && npm run dev
+```
+See [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) for complete setup.
+
+### 📦 **Production Deployment**
+Full Docker containerization with Nginx proxy and persistent data storage.
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for production configuration.
+
+---
+
+*For detailed technical architecture and implementation details, see the sections below.*
 
 

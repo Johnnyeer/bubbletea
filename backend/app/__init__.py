@@ -23,15 +23,9 @@ def create_app():
 
     bootstrap_database()
 
-    @app.get("/api/health")
+    @app.get("/api/v1/health")
     def health_check():
         return jsonify({"status": "ok"})
-        
-    @app.get("/api/v1/health")
-    def health_check_v1():
-        return jsonify({"status": "ok"})
-
-
 
     app.register_blueprint(admin_bp)
     app.register_blueprint(analytics_bp)
