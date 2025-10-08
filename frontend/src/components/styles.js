@@ -1,5 +1,26 @@
+import { getThemeForRole, getThemedStyles } from "../themes.js";
+
 const commonShadow = "0 22px 40px -24px rgba(15, 23, 42, 0.55)";
 
+// Get current user role from body class or default to customer
+const getCurrentUserRole = () => {
+    if (typeof document === 'undefined') return 'customer';
+    
+    const bodyClasses = document.body.className || '';
+    if (bodyClasses.includes('theme-manager')) return 'manager';
+    if (bodyClasses.includes('theme-staff')) return 'staff';
+    return 'customer';
+};
+
+// Dynamic styles based on current theme
+export const getCardStyle = () => {
+    const role = getCurrentUserRole();
+    const theme = getThemeForRole(role);
+    const themedStyles = getThemedStyles(theme);
+    return themedStyles.card;
+};
+
+// Legacy static card style for backwards compatibility
 export const cardStyle = {
     background: "var(--tea-surface-strong)",
     borderRadius: 24,
@@ -9,6 +30,22 @@ export const cardStyle = {
     backdropFilter: "blur(20px)",
 };
 
+// Dynamic form styles based on current theme
+export const getInputStyle = () => {
+    const role = getCurrentUserRole();
+    const theme = getThemeForRole(role);
+    const themedStyles = getThemedStyles(theme);
+    return themedStyles.input;
+};
+
+export const getLabelStyle = () => {
+    const role = getCurrentUserRole();
+    const theme = getThemeForRole(role);
+    const themedStyles = getThemedStyles(theme);
+    return themedStyles.label;
+};
+
+// Legacy static styles for backwards compatibility
 export const inputStyle = {
     width: "100%",
     marginTop: 6,
@@ -27,6 +64,22 @@ export const labelStyle = {
     color: "#0f172a",
 };
 
+// Dynamic button styles based on current theme
+export const getPrimaryButtonStyle = () => {
+    const role = getCurrentUserRole();
+    const theme = getThemeForRole(role);
+    const themedStyles = getThemedStyles(theme);
+    return themedStyles.primaryButton;
+};
+
+export const getSecondaryButtonStyle = () => {
+    const role = getCurrentUserRole();
+    const theme = getThemeForRole(role);
+    const themedStyles = getThemedStyles(theme);
+    return themedStyles.secondaryButton;
+};
+
+// Legacy static styles for backwards compatibility
 export const primaryButtonStyle = {
     border: "1px solid transparent",
     background: "linear-gradient(135deg, var(--tea-primary), var(--tea-secondary))",

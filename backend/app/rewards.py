@@ -21,24 +21,48 @@ def get_member_rewards():
             select(func.sum(OrderRecord.qty)).where(OrderRecord.member_id == account_id)
         ).scalar() or 0
         
-        # Get redeemed rewards
-        redeemed_rewards = session.execute(
-            select(MemberReward).where(MemberReward.member_id == account_id)
-        ).scalars().all()
+        # Count used rewards by type
+        used_free_drinks = session.execute(
+            select(func.count(MemberReward.id))
+            .where(MemberReward.member_id == account_id)
+            .where(MemberReward.reward_type == "free_drink")
+            .where(MemberReward.status == "used")
+        ).scalar() or 0
         
-        rewards = []
-        for reward in redeemed_rewards:
-            rewards.append({
-                "id": reward.id,
-                "type": reward.reward_type,
-                "redeemed_at": reward.redeemed_at.isoformat() if reward.redeemed_at else None
-            })
+        used_free_addons = session.execute(
+            select(func.count(MemberReward.id))
+            .where(MemberReward.member_id == account_id)
+            .where(MemberReward.reward_type == "free_addon")
+            .where(MemberReward.status == "used")
+        ).scalar() or 0
+        
+        # Calculate available rewards based on alternating milestone pattern
+        # Pattern: 5th=addon, 10th=drink, 15th=addon, 20th=drink, etc.
+        earned_free_drinks = 0
+        earned_free_addons = 0
+        
+        for drinks_completed in range(1, count + 1):
+            if drinks_completed % 10 == 0:  # 10th, 20th, 30th... = free drink
+                earned_free_drinks += 1
+            elif drinks_completed % 5 == 0:  # 5th, 15th, 25th... = free addon
+                earned_free_addons += 1
+        
+        available_free_drinks = max(0, earned_free_drinks - used_free_drinks)
+        available_free_addons = max(0, earned_free_addons - used_free_addons)
     
     return jsonify({
         "drink_count": int(count),
-        "redeemed_rewards": rewards,
         "available_rewards": {
-            "free_drink": count >= 10 and not any(r["type"] == "free_drink" for r in rewards)
+            "free_drink": available_free_drinks,
+            "free_addon": available_free_addons
+        },
+        "earned_rewards": {
+            "free_drink": earned_free_drinks,
+            "free_addon": earned_free_addons
+        },
+        "used_rewards": {
+            "free_drink": used_free_drinks,
+            "free_addon": used_free_addons
         }
     })
 
@@ -52,7 +76,7 @@ def redeem_member_reward():
     data = request.get_json(force=True)
     reward_type = data.get("type")
     
-    if reward_type not in ["free_drink"]:
+    if reward_type not in ["free_drink", "free_addon"]:
         return jsonify({"error": "Invalid reward type"}), 400
     
     with session_scope() as session:
@@ -72,6 +96,11 @@ def redeem_member_reward():
         if reward_type == "free_drink":
             if count < 10:
                 return jsonify({"error": "Need 10 drinks to redeem free drink"}), 400
+            if already_redeemed:
+                return jsonify({"error": "Reward already redeemed"}), 400
+        elif reward_type == "free_addon":
+            if count < 5:
+                return jsonify({"error": "Need 5 drinks to redeem free add-on"}), 400
             if already_redeemed:
                 return jsonify({"error": "Reward already redeemed"}), 400
         

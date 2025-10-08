@@ -2,6 +2,13 @@ import NavigationLink from "./NavigationLink.jsx";
 
 const DEFAULT_TAGLINE = "Handcrafted brews & joyful service.";
 
+const ROLE_TAGLINES = {
+    customer: "Handcrafted brews & joyful service.",
+    staff: "Efficient service & quality operations.",
+    manager: "Strategic oversight & team excellence.",
+    admin: "System administration & control."
+};
+
 const humanize = value => {
     if (typeof value !== "string" || !value.trim()) {
         return "";
@@ -49,6 +56,7 @@ export default function SystemHeader({
     subtitle,
     health,
     statusMessage,
+    userRole = "customer",
 }) {
     const navItems = navigation.map(link => (
         <NavigationLink key={link.to} to={link.to} navigate={navigate} currentPath={currentPath}>
@@ -61,12 +69,29 @@ export default function SystemHeader({
         ? `${statusMessage.slice(0, 85)}...`
         : statusMessage;
 
+    // Get role-specific tagline
+    const normalizedRole = (userRole || 'customer').toLowerCase();
+    const roleTagline = ROLE_TAGLINES[normalizedRole] || DEFAULT_TAGLINE;
+    
+    // Get role-specific title
+    const getRoleTitle = (role) => {
+        switch (role) {
+            case 'manager':
+            case 'admin':
+                return "Bubble Tea Shop - Management Portal";
+            case 'staff':
+                return "Bubble Tea Shop - Staff Operations";
+            default:
+                return "Bubble Tea Shop";
+        }
+    };
+
     return (
         <header className="tea-header">
             <div className="tea-header__top">
                 <div className="tea-header__branding">
-                    <h1 className="tea-header__title">{title}</h1>
-                    <p className="tea-header__subtitle">{subtitle || DEFAULT_TAGLINE}</p>
+                    <h1 className="tea-header__title">{getRoleTitle(normalizedRole)}</h1>
+                    <p className="tea-header__subtitle">{subtitle || roleTagline}</p>
                 </div>
                 {(healthChip || trimmedStatusMessage) && (
                     <div className="tea-header__status">

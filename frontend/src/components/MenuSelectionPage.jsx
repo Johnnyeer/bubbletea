@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import SystemLayout from "./SystemLayout.jsx";
-import { cardStyle, primaryButtonStyle, secondaryButtonStyle } from "./styles.js";
+import { 
+    cardStyle, 
+    primaryButtonStyle, 
+    secondaryButtonStyle,
+    getCardStyle,
+    getPrimaryButtonStyle,
+    getSecondaryButtonStyle
+} from "./styles.js";
 
 const formatCurrency = value => {
     const amount = Number(value || 0);
@@ -80,7 +87,7 @@ const listItemStyle = {
     flexWrap: "wrap",
 };
 
-export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
+export default function MenuSelectionPage({ system, navigate, onAddToCart, availableRewards = [], session }) {
     const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
@@ -89,6 +96,7 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
     const [selectedAddonIds, setSelectedAddonIds] = useState([]);
     const [selectedSugarLevel, setSelectedSugarLevel] = useState("100%");
     const [selectedIceAmount, setSelectedIceAmount] = useState("Normal");
+    const [selectedRewards, setSelectedRewards] = useState([]);
 
     const updateStatusMessage = typeof system?.onStatusMessage === "function" ? system.onStatusMessage : null;
 
@@ -331,6 +339,11 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
             payload.inventory_item_ids = inventoryItemIds;
         }
 
+        // Include selected rewards 
+        if (selectedRewards.length > 0) {
+            payload.appliedRewards = selectedRewards;
+        }
+
         if (typeof onAddToCart === "function") {
             onAddToCart(payload);
         }
@@ -492,6 +505,105 @@ export default function MenuSelectionPage({ system, navigate, onAddToCart }) {
                         <div style={{ fontWeight: 700 }}>
                             Total Cost: {formatCurrency(totalCost)}
                         </div>
+
+                        {/* Reward Selection */}
+                        {session?.isAuthenticated && availableRewards.length > 0 && (
+                            <div style={{
+                                border: "1px solid var(--tea-border)",
+                                borderRadius: 12,
+                                padding: "16px",
+                                background: "rgba(248, 250, 252, 0.8)",
+                                marginTop: "12px"
+                            }}>
+                                <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: "#0f172a" }}>
+                                    🎁 Apply Rewards ({availableRewards.length} available)
+                                </h4>
+                                <div style={{ display: "grid", gap: 8 }}>
+                                    {(() => {
+                                        // Group rewards by type for better display
+                                        const rewardsByType = {};
+                                        availableRewards.forEach(reward => {
+                                            if (!rewardsByType[reward.type]) {
+                                                rewardsByType[reward.type] = [];
+                                            }
+                                            rewardsByType[reward.type].push(reward);
+                                        });
+
+                                        const handleRewardToggle = (rewardId, rewardType) => {
+                                            setSelectedRewards(prev => {
+                                                const isSelected = prev.includes(rewardId);
+                                                if (isSelected) {
+                                                    return prev.filter(id => id !== rewardId);
+                                                } else {
+                                                    return [...prev, rewardId];
+                                                }
+                                            });
+                                        };
+
+                                        return Object.entries(rewardsByType).map(([type, rewards]) => (
+                                            <div key={type} style={{ 
+                                                border: "1px solid #e5e7eb",
+                                                borderRadius: 8,
+                                                padding: "8px",
+                                                background: "#f9fafb"
+                                            }}>
+                                                <div style={{ 
+                                                    fontWeight: 500, 
+                                                    fontSize: 14, 
+                                                    marginBottom: 8,
+                                                    color: "#374151"
+                                                }}>
+                                                    {type === 'free_drink' && '🎯 Free Drinks'} 
+                                                    {type === 'free_addon' && '✨ Free Add-ons'}
+                                                    {type === 'free_addon' && ' (applies to cheapest add-on)'}
+                                                </div>
+                                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                                    {rewards.map((reward, index) => {
+                                                        const isSelected = selectedRewards.includes(reward.id);
+                                                        return (
+                                                            <label key={reward.id} style={{ 
+                                                                display: "flex", 
+                                                                alignItems: "center", 
+                                                                gap: 6, 
+                                                                cursor: "pointer",
+                                                                padding: "6px 10px",
+                                                                borderRadius: 16,
+                                                                background: isSelected ? "#dbeafe" : "#ffffff",
+                                                                border: `1px solid ${isSelected ? "#3b82f6" : "#d1d5db"}`,
+                                                                fontSize: 13,
+                                                                fontWeight: 500,
+                                                                transition: "all 0.2s ease"
+                                                            }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    onChange={() => handleRewardToggle(reward.id, reward.type)}
+                                                                    style={{ margin: 0 }}
+                                                                />
+                                                                <span>#{index + 1}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                                {selectedRewards.length > 0 && (
+                                    <div style={{ 
+                                        marginTop: 12, 
+                                        padding: "8px 12px", 
+                                        background: "#dcfce7", 
+                                        border: "1px solid #bbf7d0",
+                                        borderRadius: 8,
+                                        fontSize: 14,
+                                        color: "#166534"
+                                    }}>
+                                        ✓ {selectedRewards.length} reward{selectedRewards.length > 1 ? 's' : ''} selected
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div>
                             <button

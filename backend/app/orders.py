@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from .auth import role_required, session_scope, _parse_identity, _get_identity, _json_error
 from .customizations import deserialize_customizations, extract_inventory_reservations, normalize_customizations
@@ -261,7 +261,7 @@ def list_orders():
 def create_order():
     data = request.get_json(silent=True) or {}
     raw_items = data.get("items") or []
-    applied_reward = data.get("reward")
+    applied_rewards = data.get("appliedRewards", [])  # New field for multiple rewards
     if not isinstance(raw_items, list) or len(raw_items) == 0:
         return _json_error("items must be a non-empty list", 400)
 
@@ -272,15 +272,56 @@ def create_order():
     order_items: list[tuple[OrderItem, MenuItem]] = []
 
     with session_scope() as session:
-        # If member, check for available reward
-        reward_obj = None
-        if member_id and applied_reward in {"free_addon", "free_drink"}:
-            reward_obj = session.execute(
-                select(MemberReward)
+        # Parse applied rewards and validate available counts
+        reward_usage = {'free_drink': 0, 'free_addon': 0}
+        
+        if member_id and applied_rewards:
+            for reward_id in applied_rewards:
+                if 'free_drink' in reward_id:
+                    reward_usage['free_drink'] += 1
+                elif 'free_addon' in reward_id:
+                    reward_usage['free_addon'] += 1
+            
+            # Validate member has enough available rewards
+            # Count completed drinks for this member
+            completed_drinks = session.execute(
+                select(func.sum(OrderRecord.qty)).where(OrderRecord.member_id == member_id)
+            ).scalar() or 0
+            
+            # Count used rewards by type
+            used_free_drinks = session.execute(
+                select(func.count(MemberReward.id))
                 .where(MemberReward.member_id == member_id)
-                .where(MemberReward.reward_type == applied_reward)
-                .where(MemberReward.status == "pending")
-            ).scalar_one_or_none()
+                .where(MemberReward.reward_type == "free_drink")
+                .where(MemberReward.status == "used")
+            ).scalar() or 0
+            
+            used_free_addons = session.execute(
+                select(func.count(MemberReward.id))
+                .where(MemberReward.member_id == member_id)
+                .where(MemberReward.reward_type == "free_addon")
+                .where(MemberReward.status == "used")
+            ).scalar() or 0
+            
+            # Calculate available rewards using alternating milestone pattern
+            # Pattern: 5th=addon, 10th=drink, 15th=addon, 20th=drink, etc.
+            earned_free_drinks = 0
+            earned_free_addons = 0
+            
+            for drinks_completed in range(1, completed_drinks + 1):
+                if drinks_completed % 10 == 0:  # 10th, 20th, 30th... = free drink
+                    earned_free_drinks += 1
+                elif drinks_completed % 5 == 0:  # 5th, 15th, 25th... = free addon
+                    earned_free_addons += 1
+            
+            available_free_drinks = max(0, earned_free_drinks - used_free_drinks)
+            available_free_addons = max(0, earned_free_addons - used_free_addons)
+            
+            # Validate reward usage doesn't exceed available
+            if reward_usage['free_drink'] > available_free_drinks:
+                return _json_error(f"Only {available_free_drinks} free drink rewards available", 400)
+            if reward_usage['free_addon'] > available_free_addons:
+                return _json_error(f"Only {available_free_addons} free add-on rewards available", 400)
         inventory_reservations: dict[int, int] = {}
         tracked_items: dict[int, MenuItem] = {}
         inventory_lookup: dict[tuple[str, str], MenuItem] = {}
@@ -401,14 +442,66 @@ def create_order():
 
             unit_price = _coerce_decimal(entry.get("price"), menu_item.price)
             total_price = unit_price * quantity
-            # Apply reward: free drink (first item), or free add-on (set add-on price to 0)
-            if reward_obj:
-                if applied_reward == "free_drink" and idx == 0:
-                    total_price = Decimal("0.00")
-                elif applied_reward == "free_addon" and customizations.get("addons"):
-                    # Set add-on price to 0 (assumes add-ons are priced separately)
-                    # You may need to adjust this logic based on your menu/add-on pricing
-                    customizations["reward_free_addon"] = True
+            
+            # Handle applied rewards for this item
+            item_applied_rewards = entry.get("appliedRewards", [])
+            if item_applied_rewards:
+                for reward_id in item_applied_rewards:
+                    if 'free_drink' in reward_id and reward_usage['free_drink'] > 0:
+                        # Make this drink free
+                        total_price = Decimal("0.00")
+                        reward_usage['free_drink'] -= 1
+                        # Store the applied reward in customizations for tracking
+                        if not customizations:
+                            customizations = {}
+                        customizations.setdefault('applied_rewards', []).append(reward_id)
+                        break  # Only one free drink per item
+                
+                # Handle free add-on rewards
+                free_addon_count = len([r for r in item_applied_rewards if 'free_addon' in r])
+                if free_addon_count > 0 and customizations and customizations.get("addons"):
+                    # Store free add-on info for price calculation later
+                    customizations["free_addon_count"] = min(free_addon_count, reward_usage['free_addon'])
+                    reward_usage['free_addon'] -= customizations["free_addon_count"]
+                    
+                    # Track applied free addon rewards
+                    free_addon_rewards = [r for r in item_applied_rewards if 'free_addon' in r][:customizations["free_addon_count"]]
+                    customizations.setdefault('applied_rewards', []).extend(free_addon_rewards)
+            
+            # Calculate add-on prices and apply free add-on discounts
+            addon_price = Decimal("0.00")
+            if customizations and customizations.get("addons"):
+                addon_labels = customizations["addons"]
+                free_addon_count = customizations.get("free_addon_count", 0)
+                
+                # Get add-on prices from menu items
+                addon_prices = []
+                for addon_label in addon_labels:
+                    addon_item = session.execute(
+                        select(MenuItem)
+                        .where(MenuItem.name == addon_label)
+                        .where(MenuItem.category == "addon")
+                    ).scalar_one_or_none()
+                    
+                    if addon_item:
+                        addon_prices.append(addon_item.price)
+                    else:
+                        # Default price if addon not found as menu item
+                        addon_prices.append(Decimal("0.50"))
+                
+                # Sort prices ascending to apply free discounts to cheapest items first
+                addon_prices.sort()
+                
+                # Apply free add-on discounts to cheapest add-ons
+                for i, price in enumerate(addon_prices):
+                    if i < free_addon_count:
+                        # This add-on is free due to reward
+                        continue
+                    else:
+                        addon_price += price
+            
+            # Add addon price to total
+            total_price += addon_price * quantity
 
             customizations_json = json.dumps(customizations) if customizations else None
 
@@ -430,10 +523,23 @@ def create_order():
             continue
         item.quantity = max(0, item.quantity - decrease)
 
-    # Mark reward as used if applied
-    if reward_obj:
-        reward_obj.status = "used"
-        session.add(reward_obj)
+    # Create reward records for used rewards
+    if member_id and applied_rewards:
+        for reward_id in applied_rewards:
+            reward_type = None
+            if 'free_drink' in reward_id:
+                reward_type = 'free_drink'
+            elif 'free_addon' in reward_id:
+                reward_type = 'free_addon'
+                
+            if reward_type:
+                reward_record = MemberReward(
+                    member_id=member_id,
+                    reward_type=reward_type,
+                    status="used",
+                    discount_amount=0.0  # Could be calculated based on actual savings
+                )
+                session.add(reward_record)
     session.commit()
 
     response_items = []

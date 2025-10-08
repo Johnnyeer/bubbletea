@@ -55,10 +55,11 @@ const SessionSwitcher = ({ onSessionChange, onStatusMessage }) => {
 
     const getRoleBadgeColor = (role) => {
         switch (role) {
-            case 'manager': return '#e74c3c';
-            case 'staff': return '#3498db';
-            case 'customer': return '#27ae60';
-            default: return '#95a5a6';
+            case 'manager': return { bg: '#1f2937', color: '#ffffff', label: 'Manager' };
+            case 'admin': return { bg: '#1f2937', color: '#ffffff', label: 'Admin' };
+            case 'staff': return { bg: '#3b82f6', color: '#ffffff', label: 'Staff' };
+            case 'customer': return { bg: '#f97316', color: '#ffffff', label: 'Customer' };
+            default: return { bg: '#6b7280', color: '#ffffff', label: 'User' };
         }
     };
 

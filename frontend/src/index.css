@@ -324,3 +324,115 @@ input::placeholder,
 textarea::placeholder {
     color: rgba(100, 116, 139, 0.8);
 }
+
+/* Role-specific theme enhancements */
+
+/* Customer Theme - Warm and welcoming */
+body.theme-customer {
+    --tea-glow: 0 0 40px rgba(249, 115, 22, 0.15);
+}
+
+body.theme-customer .tea-header__title {
+    background: linear-gradient(135deg, #f97316, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+body.theme-customer .tea-nav-link.is-active {
+    transform: scale(1.02);
+}
+
+/* Staff Theme - Professional and efficient */
+body.theme-staff {
+    --tea-glow: 0 0 40px rgba(59, 130, 246, 0.15);
+}
+
+body.theme-staff .tea-header__title {
+    color: #1e40af;
+    font-weight: 600;
+}
+
+body.theme-staff .tea-header__subtitle {
+    color: #475569;
+    font-weight: 500;
+}
+
+body.theme-staff .tea-nav-link {
+    background: rgba(248, 250, 252, 0.7);
+    border-color: rgba(59, 130, 246, 0.15);
+}
+
+body.theme-staff .tea-nav-link:hover {
+    background: rgba(248, 250, 252, 0.9);
+    border-color: rgba(59, 130, 246, 0.25);
+}
+
+body.theme-staff .tea-nav-link.is-active {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    box-shadow: 0 18px 32px -16px rgba(59, 130, 246, 0.48);
+}
+
+/* Manager Theme - Executive and authoritative */
+body.theme-manager {
+    --tea-glow: 0 0 40px rgba(31, 41, 55, 0.15);
+}
+
+body.theme-manager .tea-header__title {
+    color: #111827;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+body.theme-manager .tea-header__subtitle {
+    color: #4b5563;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.95rem;
+    letter-spacing: 0.05em;
+}
+
+body.theme-manager .tea-nav-link {
+    background: rgba(249, 250, 251, 0.8);
+    border-color: rgba(31, 41, 55, 0.2);
+    font-weight: 600;
+}
+
+body.theme-manager .tea-nav-link:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(31, 41, 55, 0.3);
+    transform: translateY(-1px);
+}
+
+body.theme-manager .tea-nav-link.is-active {
+    background: linear-gradient(135deg, #1f2937, #374151);
+    box-shadow: 0 18px 32px -16px rgba(31, 41, 55, 0.68);
+    color: #ffffff;
+}
+
+/* Enhanced button styles per role */
+body.theme-customer button {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.theme-customer button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 25px 50px -12px rgba(249, 115, 22, 0.25);
+}
+
+body.theme-staff button {
+    transition: all 0.2s ease;
+}
+
+body.theme-staff button:hover {
+    transform: translateY(-1px);
+}
+
+body.theme-manager button {
+    transition: all 0.15s ease;
+    font-weight: 600;
+}
+
+body.theme-manager button:hover {
+    transform: scale(1.02);
+}

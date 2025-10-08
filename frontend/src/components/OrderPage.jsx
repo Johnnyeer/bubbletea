@@ -5,6 +5,11 @@ import {
     labelStyle,
     primaryButtonStyle,
     secondaryButtonStyle,
+    getCardStyle,
+    getPrimaryButtonStyle,
+    getSecondaryButtonStyle,
+    getInputStyle,
+    getLabelStyle,
 } from './styles.js';
 import LoginModeSwitcher from './LoginModeSwitcher.jsx';
 
@@ -20,6 +25,14 @@ export default function OrderPage({
     user,
 }) {
     const [loginMode, setLoginMode] = useState('customer');
+    
+    // Use dynamic themed styles - OrderPage is typically customer-facing
+    const themedCardStyle = getCardStyle();
+    const themedPrimaryButtonStyle = getPrimaryButtonStyle();
+    const themedSecondaryButtonStyle = getSecondaryButtonStyle();
+    const themedInputStyle = getInputStyle();
+    const themedLabelStyle = getLabelStyle();
+    
     return (
         <div className="order-page">
             <main className="order-page__main">

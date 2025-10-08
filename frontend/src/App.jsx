@@ -14,6 +14,7 @@ import RewardPage from "./components/RewardPage.jsx";
 import SystemLayout from "./components/SystemLayout.jsx";
 import SessionSwitcher from "./components/SessionSwitcher.jsx";
 import sessionManager from "./utils/sessionManager.js";
+import { getThemeForRole, applyTheme } from "./themes.js";
 
 const CUSTOMER_NAVIGATION = [
     { to: "/order", label: "Member Log In" },
@@ -76,6 +77,7 @@ export default function App() {
     const [recentOrderItems, setRecentOrderItems] = useState([]);
     const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
     const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
+    const [availableRewards, setAvailableRewards] = useState([]);
 
     useEffect(() => {
         fetch("/api/v1/health")
@@ -90,6 +92,7 @@ export default function App() {
         if (currentUser && currentToken) {
             setUser(currentUser);
             setToken(currentToken);
+            loadAvailableRewards(currentToken);
         }
     }, []);
 
@@ -100,6 +103,19 @@ export default function App() {
         const handlePopState = () => setCurrentPath(safePath());
         window.addEventListener("popstate", handlePopState);
         return () => window.removeEventListener("popstate", handlePopState);
+    }, []);
+
+    // Apply theme based on current user role
+    useEffect(() => {
+        const userRole = user?.role || 'customer';
+        const theme = getThemeForRole(userRole);
+        applyTheme(theme);
+    }, [user]);
+    
+    // Apply default customer theme on initial load
+    useEffect(() => {
+        const defaultTheme = getThemeForRole('customer');
+        applyTheme(defaultTheme);
     }, []);
 
     // Session management is now handled by sessionManager
@@ -216,6 +232,51 @@ export default function App() {
         setToken(newToken);
         if (!isAuthenticated) {
             setRecentOrderItems([]);
+            setAvailableRewards([]);
+        } else {
+            // Load available rewards when user logs in
+            loadAvailableRewards(newToken);
+        }
+    };
+
+    const loadAvailableRewards = async (authToken = token) => {
+        if (!authToken) return;
+        
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (authToken) {
+                headers.Authorization = `Bearer ${authToken}`;
+            }
+
+            const response = await fetch('/api/v1/rewards', { headers });
+            const data = await response.json().catch(() => ({}));
+            
+            if (response.ok && data.available_rewards) {
+                // Convert available reward counts to reward objects that can be applied
+                const rewards = [];
+                
+                // Add free drink rewards
+                for (let i = 0; i < (data.available_rewards.free_drink || 0); i++) {
+                    rewards.push({
+                        id: `free_drink_${i}`,
+                        type: 'free_drink',
+                        status: 'available'
+                    });
+                }
+                
+                // Add free add-on rewards
+                for (let i = 0; i < (data.available_rewards.free_addon || 0); i++) {
+                    rewards.push({
+                        id: `free_addon_${i}`,
+                        type: 'free_addon',
+                        status: 'available'
+                    });
+                }
+                
+                setAvailableRewards(rewards);
+            }
+        } catch (err) {
+            console.error('Failed to load available rewards:', err);
         }
     };
 
@@ -227,7 +288,59 @@ export default function App() {
                 id: tempId(),
             },
         ]);
+        
+        // Remove used rewards from available rewards
+        if (item.appliedRewards && Array.isArray(item.appliedRewards)) {
+            setAvailableRewards(prev => 
+                prev.filter(reward => !item.appliedRewards.includes(reward.id))
+            );
+        }
+        
         navigate("/cart");
+    };
+
+    const handleUpdateCartItem = (itemId, updates) => {
+        setCartItems(previous => {
+            const updatedItems = previous.map(item => {
+                if (item.id === itemId) {
+                    const oldRewards = item.appliedRewards || [];
+                    const newRewards = updates.appliedRewards || [];
+                    
+                    // Find rewards that were removed from this item
+                    const removedRewards = oldRewards.filter(reward => !newRewards.includes(reward));
+                    
+                    // Find rewards that were added to this item
+                    const addedRewards = newRewards.filter(reward => !oldRewards.includes(reward));
+                    
+                    // Update available rewards
+                    if (removedRewards.length > 0 || addedRewards.length > 0) {
+                        setAvailableRewards(prev => {
+                            // Add back removed rewards and remove newly added rewards
+                            let updated = [...prev];
+                            
+                            // Add back removed rewards
+                            removedRewards.forEach(rewardId => {
+                                const rewardType = rewardId.includes('free_drink') ? 'free_drink' : 'free_addon';
+                                updated.push({
+                                    id: rewardId,
+                                    type: rewardType,
+                                    status: 'available'
+                                });
+                            });
+                            
+                            // Remove newly added rewards
+                            updated = updated.filter(reward => !addedRewards.includes(reward.id));
+                            
+                            return updated;
+                        });
+                    }
+                    
+                    return { ...item, ...updates };
+                }
+                return item;
+            });
+            return updatedItems;
+        });
     };
 
     const handleCheckout = () => {
@@ -242,10 +355,23 @@ export default function App() {
             headers.Authorization = "Bearer " + token;
         }
 
+        // Extract all applied rewards from cart items
+        const allAppliedRewards = [];
+        cartItems.forEach(item => {
+            if (item.appliedRewards && Array.isArray(item.appliedRewards)) {
+                allAppliedRewards.push(...item.appliedRewards);
+            }
+        });
+        
+        const orderData = { 
+            items: cartItems,
+            appliedRewards: allAppliedRewards
+        };
+
         fetch("/api/v1/orders", {
             method: "POST",
             headers,
-            body: JSON.stringify({ items: cartItems }),
+            body: JSON.stringify(orderData),
         })
             .then(async response => {
                 const data = await response.json().catch(() => ({}));
@@ -259,6 +385,7 @@ export default function App() {
                 setRecentOrderItems(items);
                 setStatusMessage("Order placed!");
                 setCartItems([]);
+                loadAvailableRewards(); // Refresh rewards after order to update used status
                 navigate("/order-summary");
             })
             .catch(error => {
@@ -379,6 +506,7 @@ export default function App() {
         onStatusMessage: setStatusMessage,
         onSessionChange: handleSessionChange,
         showSessionSwitcher: sessionManager.getAllSessions().length > 1,
+        userRole: viewerRole,
     };
 
     const sessionProps = {
@@ -411,6 +539,8 @@ export default function App() {
                     system={systemProps}
                     navigate={navigate}
                     onAddToCart={handleAddItemToCart}
+                    availableRewards={availableRewards}
+                    session={sessionProps}
                 />
             );
         case "/register":
@@ -427,6 +557,9 @@ export default function App() {
                     navigate={navigate}
                     onCheckout={handleCheckout}
                     isCheckingOut={isSubmittingOrder}
+                    availableRewards={availableRewards}
+                    session={sessionProps}
+                    onUpdateCartItem={handleUpdateCartItem}
                 />
             );
         case "/schedule":

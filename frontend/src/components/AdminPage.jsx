@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import SystemLayout from "./SystemLayout.jsx";
-import { primaryButtonStyle, secondaryButtonStyle, labelStyle, inputStyle, cardStyle } from "./styles.js";
+import { 
+    primaryButtonStyle, 
+    secondaryButtonStyle, 
+    labelStyle, 
+    inputStyle, 
+    cardStyle,
+    getPrimaryButtonStyle,
+    getSecondaryButtonStyle,
+    getLabelStyle,
+    getInputStyle,
+    getCardStyle
+} from "./styles.js";
 
 const EMPTY_ACCOUNT = { full_name: "", username: "", password: "", role: "staff" };
 const DEFAULT_ADJUSTMENT = "1";
@@ -63,6 +74,13 @@ export default function AdminPage({
 
     const updateStatusMessage = typeof system?.onStatusMessage === "function" ? system.onStatusMessage : null;
     const statusMessage = typeof system?.statusMessage === "string" ? system.statusMessage : "";
+
+    // Use dynamic themed styles
+    const themedCardStyle = getCardStyle();
+    const themedPrimaryButtonStyle = getPrimaryButtonStyle();
+    const themedSecondaryButtonStyle = getSecondaryButtonStyle();
+    const themedInputStyle = getInputStyle();
+    const themedLabelStyle = getLabelStyle();
 
     const getAdjustmentValue = itemId => {
         const raw = quantityInputs[itemId];
@@ -348,10 +366,10 @@ export default function AdminPage({
     return (
         <SystemLayout system={system}>
             {!isAuthenticated && (
-                <section style={cardStyle}>
+                <section style={themedCardStyle}>
                     <h2 style={{ marginTop: 0 }}>Staff Sign In</h2>
                     <form onSubmit={onLoginSubmit} style={{ maxWidth: 360 }}>
-                        <label style={labelStyle}>
+                        <label style={themedLabelStyle}>
                             Username:
                             <input
                                 type="text"
@@ -359,10 +377,10 @@ export default function AdminPage({
                                 value={loginForm.username}
                                 onChange={onLoginChange}
                                 required
-                                style={inputStyle}
+                                style={themedInputStyle}
                             />
                         </label>
-                        <label style={labelStyle}>
+                        <label style={themedLabelStyle}>
                             Password:
                             <input
                                 type="password"
@@ -370,17 +388,17 @@ export default function AdminPage({
                                 value={loginForm.password}
                                 onChange={onLoginChange}
                                 required
-                                style={inputStyle}
+                                style={themedInputStyle}
                             />
                         </label>
                         {statusMessage && (
                             <p style={errorTextStyle}>{statusMessage}</p>
                         )}
                         <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
-                            <button type="submit" style={primaryButtonStyle}>
+                            <button type="submit" style={themedPrimaryButtonStyle}>
                                 Sign In
                             </button>
-                            <button type="button" onClick={goToPath("/order")} style={secondaryButtonStyle}>
+                            <button type="button" onClick={goToPath("/order")} style={themedSecondaryButtonStyle}>
                                 Customer Page
                             </button>
                         </div>
@@ -389,7 +407,7 @@ export default function AdminPage({
             )}
 
             {isAuthenticated && user && !isInventoryView && (
-                <section style={{ ...cardStyle }}>
+                <section style={{ ...themedCardStyle }}>
                     <h3 style={{ marginTop: 0 }}>Signed in as {user.full_name}</h3>
                     <p>Role: {user.role}</p>
                     <div style={{ marginTop: 16 }}>

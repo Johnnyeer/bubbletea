@@ -1,7 +1,7 @@
 """Database bootstrap utilities."""
 from datetime import date, timedelta
 from decimal import Decimal
-from sqlalchemy import inspect, select
+from sqlalchemy import inspect, select, func
 from werkzeug.security import generate_password_hash
 
 from .db import SessionLocal, engine
@@ -183,6 +183,60 @@ def _archive_completed_orders() -> None:
         session.commit()
 
 
+def _seed_sample_orders() -> None:
+    """Create sample completed orders for testing rewards system."""
+    from datetime import datetime, timedelta
+    
+    with SessionLocal() as session:
+        # Check if we already have enough orders for member1
+        member1 = session.scalar(select(Member).where(Member.username == "member1"))
+        if not member1:
+            return
+            
+        existing_count = session.scalar(
+            select(func.sum(OrderRecord.qty)).where(OrderRecord.member_id == member1.id)
+        ) or 0
+        
+        # If member1 already has 15+ drinks, don't create more
+        if existing_count >= 15:
+            return
+            
+        # Get menu items for creating orders
+        green_tea = session.scalar(select(MenuItem).where(MenuItem.name == "Green Tea"))
+        black_tea = session.scalar(select(MenuItem).where(MenuItem.name == "Black Tea"))
+        oolong_tea = session.scalar(select(MenuItem).where(MenuItem.name == "Oolong Tea"))
+        
+        if not all([green_tea, black_tea, oolong_tea]):
+            return
+            
+        # Create additional completed orders to bring total to 15
+        orders_needed = 15 - existing_count
+        base_time = datetime.now() - timedelta(days=30)  # 30 days ago
+        
+        menu_items = [green_tea, black_tea, oolong_tea]
+        
+        for i in range(int(orders_needed)):
+            item = menu_items[i % len(menu_items)]
+            order_time = base_time + timedelta(days=i * 2, hours=i % 12)
+            
+            # Create an OrderRecord directly (simulating a completed order)
+            order_record = OrderRecord(
+                order_item_id=1000 + i,  # Use high IDs to avoid conflicts
+                member_id=member1.id,
+                staff_id=None,
+                item_id=item.id,
+                qty=1,
+                status="complete",
+                total_price=item.price,
+                customizations=None,
+                created_at=order_time,
+                completed_at=order_time + timedelta(minutes=10)
+            )
+            session.add(order_record)
+            
+        session.commit()
+
+
 def _reset_schedule_schema(connection) -> None:
     inspector = inspect(connection)
     if "schedule_shifts" in inspector.get_table_names():
@@ -202,6 +256,7 @@ def bootstrap_database() -> None:
     _seed_staff_accounts()
     _seed_schedule_shifts()
     _seed_member_accounts()
+    _seed_sample_orders()
 
 
 def _migrate_staff_remove_email(connection) -> None:
