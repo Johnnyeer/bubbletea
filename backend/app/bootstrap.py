@@ -197,55 +197,142 @@ def _archive_completed_orders() -> None:
 
 
 def _seed_sample_orders() -> None:
-    """Create sample completed orders for testing rewards system."""
+    """Create sample completed orders for testing rewards system and analytics."""
     from datetime import datetime, timedelta
+    import json
+    import random
     
     with SessionLocal() as session:
-        # Check if we already have enough orders for member1
-        member1 = session.scalar(select(Member).where(Member.username == "member1"))
-        if not member1:
-            return
-            
-        existing_count = session.scalar(
-            select(func.sum(OrderRecord.qty)).where(OrderRecord.member_id == member1.id)
-        ) or 0
+        # Clear existing order records to ensure clean data
+        session.execute(select(OrderRecord)).scalars().all()
+        session.query(OrderRecord).delete()
         
-        # If member1 already has 15+ drinks, don't create more
-        if existing_count >= 15:
+        # Get members - use email to find them since username might be None
+        member1 = session.scalar(select(Member).where(Member.email == "member1@example.com"))
+        member2 = session.scalar(select(Member).where(Member.email == "member2@example.com"))
+        
+        if not member1 or not member2:
             return
             
         # Get menu items for creating orders
         green_tea = session.scalar(select(MenuItem).where(MenuItem.name == "Green Tea"))
         black_tea = session.scalar(select(MenuItem).where(MenuItem.name == "Black Tea"))
         oolong_tea = session.scalar(select(MenuItem).where(MenuItem.name == "Oolong Tea"))
+        evap_milk = session.scalar(select(MenuItem).where(MenuItem.name == "Evaporated Milk"))
+        fresh_milk = session.scalar(select(MenuItem).where(MenuItem.name == "Fresh Milk"))
+        oat_milk = session.scalar(select(MenuItem).where(MenuItem.name == "Oat Milk"))
+        tapioca = session.scalar(select(MenuItem).where(MenuItem.name == "Tapioca Pearls"))
+        taro_balls = session.scalar(select(MenuItem).where(MenuItem.name == "Taro Balls"))
+        pudding = session.scalar(select(MenuItem).where(MenuItem.name == "Pudding"))
         
         if not all([green_tea, black_tea, oolong_tea]):
             return
             
-        # Create additional completed orders to bring total to 15
-        orders_needed = 15 - existing_count
-        base_time = datetime.now() - timedelta(days=30)  # 30 days ago
+        teas = [green_tea, black_tea, oolong_tea]
+        milks = [evap_milk, fresh_milk, oat_milk] if all([evap_milk, fresh_milk, oat_milk]) else []
+        addons = [tapioca, taro_balls, pudding] if all([tapioca, taro_balls, pudding]) else []
         
-        menu_items = [green_tea, black_tea, oolong_tea]
+        sugar_levels = ["0%", "25%", "50%", "75%", "100%"]
+        ice_levels = ["None", "Light", "Normal", "Extra"]
         
-        for i in range(int(orders_needed)):
-            item = menu_items[i % len(menu_items)]
-            order_time = base_time + timedelta(days=i * 2, hours=i % 12)
+        base_time = datetime.now() - timedelta(days=60)  # 60 days ago
+        order_id_counter = 2000  # Start with high IDs to avoid conflicts
+        
+        # Create 15 orders for member1
+        for i in range(15):
+            tea = random.choice(teas)
             
-            # Create an OrderRecord directly (simulating a completed order)
+            # Randomize milk (some orders can have None milk)
+            milk_choice = random.choice([None] + milks) if milks else None
+            milk_name = milk_choice.name if milk_choice else None
+            
+            # Randomize add-ons (some orders can have None add-ons)
+            addon_choice = random.choice([None] + addons) if addons else None
+            addon_names = [addon_choice.name] if addon_choice else []
+            
+            sugar = random.choice(sugar_levels)
+            ice = random.choice(ice_levels)
+            
+            # Calculate total price
+            total_price = tea.price
+            if milk_choice:
+                total_price += milk_choice.price
+            if addon_choice:
+                total_price += addon_choice.price
+            
+            # Create customizations JSON
+            customizations = {
+                "tea": tea.name,
+                "milk": milk_name or "None",
+                "sugar": sugar,
+                "ice": ice,
+                "addons": addon_names
+            }
+            
+            order_time = base_time + timedelta(days=i * 3, hours=random.randint(8, 20), minutes=random.randint(0, 59))
+            
             order_record = OrderRecord(
-                order_item_id=1000 + i,  # Use high IDs to avoid conflicts
+                order_item_id=order_id_counter,
                 member_id=member1.id,
                 staff_id=None,
-                item_id=item.id,
+                item_id=tea.id,
                 qty=1,
                 status="complete",
-                total_price=item.price,
-                customizations=None,
+                total_price=total_price,
+                customizations=json.dumps(customizations),
                 created_at=order_time,
-                completed_at=order_time + timedelta(minutes=10)
+                completed_at=order_time + timedelta(minutes=random.randint(5, 15))
             )
             session.add(order_record)
+            order_id_counter += 1
+            
+        # Create 5 orders for member2
+        for i in range(5):
+            tea = random.choice(teas)
+            
+            # Randomize milk (some orders can have None milk)
+            milk_choice = random.choice([None] + milks) if milks else None
+            milk_name = milk_choice.name if milk_choice else None
+            
+            # Randomize add-ons (some orders can have None add-ons)
+            addon_choice = random.choice([None] + addons) if addons else None
+            addon_names = [addon_choice.name] if addon_choice else []
+            
+            sugar = random.choice(sugar_levels)
+            ice = random.choice(ice_levels)
+            
+            # Calculate total price
+            total_price = tea.price
+            if milk_choice:
+                total_price += milk_choice.price
+            if addon_choice:
+                total_price += addon_choice.price
+            
+            # Create customizations JSON
+            customizations = {
+                "tea": tea.name,
+                "milk": milk_name or "None",
+                "sugar": sugar,
+                "ice": ice,
+                "addons": addon_names
+            }
+            
+            order_time = base_time + timedelta(days=i * 8, hours=random.randint(9, 19), minutes=random.randint(0, 59))
+            
+            order_record = OrderRecord(
+                order_item_id=order_id_counter,
+                member_id=member2.id,
+                staff_id=None,
+                item_id=tea.id,
+                qty=1,
+                status="complete",
+                total_price=total_price,
+                customizations=json.dumps(customizations),
+                created_at=order_time,
+                completed_at=order_time + timedelta(minutes=random.randint(5, 15))
+            )
+            session.add(order_record)
+            order_id_counter += 1
             
         session.commit()
 
