@@ -98,7 +98,7 @@ export default function RegisterPage({ navigate }) {
                         <div style={{ marginTop: 12 }}>
                             <button
                                 type="button"
-                                onClick={() => navigate("/order")}
+                                onClick={() => navigate("/customer")}
                                 style={{
                                     ...secondaryButtonStyle,
                                     padding: "8px 18px",
