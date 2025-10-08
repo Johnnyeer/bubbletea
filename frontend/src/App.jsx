@@ -483,13 +483,20 @@ export default function App() {
             throw new Error(message);
         }
         setStatusMessage("Creating team account...");
+        
+        // Add account_type: "staff" to the payload since we're creating staff accounts
+        const staffPayload = {
+            ...payload,
+            account_type: "staff"
+        };
+        
         const response = await fetch("/api/v1/admin/accounts", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: "Bearer " + token,
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(staffPayload),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
