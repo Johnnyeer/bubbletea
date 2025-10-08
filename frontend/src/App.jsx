@@ -403,7 +403,7 @@ export default function App() {
             })
             .then(data => {
                 const items = Array.isArray(data.order_items) ? data.order_items : [];
-                setRecentOrderItems(items);
+                setRecentOrderItems(previous => [...items, ...previous]);
                 setStatusMessage("Order placed!");
                 setCartItems([]);
                 loadAvailableRewards(); // Refresh rewards after order to update used status

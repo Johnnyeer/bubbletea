@@ -12,7 +12,9 @@ from sqlalchemy import (
     Date,
     UniqueConstraint,
     Text,
+    Column,
 )
+from sqlalchemy.dialects.sqlite import INTEGER
 
 
 class Base(DeclarativeBase):
@@ -64,8 +66,9 @@ ORDER_STATES = ("received", "preparing", "complete")
 class OrderItem(Base):
     """Order item record tracking customizable drinks."""
     __tablename__ = "order_items"
+    __table_args__ = {'sqlite_autoincrement': True}
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id = Column(INTEGER, primary_key=True, autoincrement=True)
     member_id: Mapped[int | None] = mapped_column(ForeignKey("members.id", ondelete="SET NULL"))
     staff_id: Mapped[int | None] = mapped_column(ForeignKey("staff.id", ondelete="SET NULL"))
     item_id: Mapped[int] = mapped_column(ForeignKey("menu_items.id", ondelete="RESTRICT"), nullable=False)
