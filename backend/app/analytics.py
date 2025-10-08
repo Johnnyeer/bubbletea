@@ -81,6 +81,7 @@ def analytics_summary():
 
         base_items = []
         total_sold = 0
+        tea_base_counter = Counter()
         for item_id, name, category, quantity_sold in sold_rows:
             qty = int(quantity_sold or 0)
             total_sold += qty
@@ -93,6 +94,9 @@ def analytics_summary():
                     "quantity_sold": qty,
                 }
             )
+            # Track tea base items separately for "Most Popular Tea"
+            if category.lower() == "tea":
+                tea_base_counter[name] += qty
 
         pending_stmt = select(func.count(OrderItem.id)).where(OrderItem.status != "complete")
         pending_count = session.scalar(pending_stmt) or 0
@@ -148,7 +152,7 @@ def analytics_summary():
             },
             "items_sold": items_sold,
             "popular": {
-                "tea": _format_popular_entry(tea_counter),
+                "tea": _format_popular_entry(tea_base_counter),
                 "milk": _format_popular_entry(milk_counter),
                 "addon": _format_popular_entry(addon_counter),
             },
