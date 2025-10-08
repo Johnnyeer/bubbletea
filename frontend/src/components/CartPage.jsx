@@ -101,7 +101,7 @@ const totalRowStyle = {
     fontSize: 18,
 };
 
-export default function CartPage({ system, cartItems = [], navigate, onCheckout, isCheckingOut, availableRewards = [], session, onUpdateCartItem }) {
+export default function CartPage({ system, cartItems = [], navigate, onCheckout, isCheckingOut, availableRewards = [], session, onUpdateCartItem, onRemoveFromCart }) {
     const total = (cartItems || []).reduce((sum, item) => {
         return sum + calculateDiscountedPrice(item);
     }, 0);
@@ -149,7 +149,7 @@ export default function CartPage({ system, cartItems = [], navigate, onCheckout,
 
                             return (
                                 <div key={item.id} style={cartItemStyle}>
-                                    <div style={{ display: "grid", gap: 4 }}>
+                                    <div style={{ display: "grid", gap: 4, flex: 1 }}>
                                         <div style={{ 
                                             display: "flex", 
                                             alignItems: "center", 
@@ -228,27 +228,44 @@ export default function CartPage({ system, cartItems = [], navigate, onCheckout,
                                             </div>
                                         )}
                                     </div>
-                                    <div style={{ fontWeight: 700, fontSize: 18 }}>
-                                        {(() => {
-                                            const originalPrice = (item.price || 0) * qty;
-                                            const discountedPrice = calculateDiscountedPrice(item);
-                                            const hasDiscount = discountedPrice < originalPrice;
-                                            
-                                            if (hasDiscount) {
-                                                return (
-                                                    <div style={{ textAlign: 'right' }}>
-                                                        <div style={{ fontSize: 14, textDecoration: 'line-through', color: '#9ca3af' }}>
-                                                            {formatCurrency(originalPrice)}
+                                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => onRemoveFromCart?.(item.id)}
+                                            style={{
+                                                ...secondaryButtonStyle,
+                                                padding: "6px 12px",
+                                                fontSize: 12,
+                                                background: "#fee2e2",
+                                                borderColor: "#fecaca",
+                                                color: "#dc2626"
+                                            }}
+                                            title="Remove from cart"
+                                        >
+                                            Remove
+                                        </button>
+                                        <div style={{ fontWeight: 700, fontSize: 18 }}>
+                                            {(() => {
+                                                const originalPrice = (item.price || 0) * qty;
+                                                const discountedPrice = calculateDiscountedPrice(item);
+                                                const hasDiscount = discountedPrice < originalPrice;
+                                                
+                                                if (hasDiscount) {
+                                                    return (
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontSize: 14, textDecoration: 'line-through', color: '#9ca3af' }}>
+                                                                {formatCurrency(originalPrice)}
+                                                            </div>
+                                                            <div style={{ color: '#166534', fontWeight: 700 }}>
+                                                                {formatCurrency(discountedPrice)}
+                                                            </div>
                                                         </div>
-                                                        <div style={{ color: '#166534', fontWeight: 700 }}>
-                                                            {formatCurrency(discountedPrice)}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            } else {
-                                                return formatCurrency(originalPrice);
-                                            }
-                                        })()}
+                                                    );
+                                                } else {
+                                                    return formatCurrency(originalPrice);
+                                                }
+                                            })()}
+                                        </div>
                                     </div>
                                 </div>
                             );

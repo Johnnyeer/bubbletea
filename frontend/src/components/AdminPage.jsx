@@ -398,7 +398,7 @@ export default function AdminPage({
                             <button type="submit" style={themedPrimaryButtonStyle}>
                                 Sign In
                             </button>
-                            <button type="button" onClick={goToPath("/order")} style={themedSecondaryButtonStyle}>
+                            <button type="button" onClick={goToPath("/customer")} style={themedSecondaryButtonStyle}>
                                 Customer Page
                             </button>
                         </div>

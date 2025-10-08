@@ -17,6 +17,9 @@ export const customerTheme = {
     textMuted: '#64748b',
     border: 'rgba(15, 23, 42, 0.08)',
     borderStrong: 'rgba(15, 23, 42, 0.16)',
+    success: '#10b981',
+    warning: '#f59e0b',
+    bgLight: 'rgba(254, 242, 242, 0.5)',
   },
   fonts: {
     primary: "'Inter', 'Segoe UI', system-ui, sans-serif",
@@ -50,6 +53,9 @@ export const staffTheme = {
     textMuted: '#475569',
     border: 'rgba(15, 23, 42, 0.12)',
     borderStrong: 'rgba(15, 23, 42, 0.2)',
+    success: '#10b981',
+    warning: '#f59e0b',
+    bgLight: 'rgba(241, 245, 249, 0.5)',
   },
   fonts: {
     primary: "'Roboto', 'Segoe UI', system-ui, sans-serif",
@@ -133,6 +139,10 @@ export const applyTheme = (theme) => {
   root.style.setProperty('--tea-border-strong', theme.colors.borderStrong);
   root.style.setProperty('--tea-text', theme.colors.text);
   root.style.setProperty('--tea-text-muted', theme.colors.textMuted);
+  root.style.setProperty('--tea-success', theme.colors.success);
+  root.style.setProperty('--tea-warning', theme.colors.warning);
+  root.style.setProperty('--tea-bg-light', theme.colors.bgLight);
+  root.style.setProperty('--tea-muted', theme.colors.textMuted);
   
   // Add theme class to body for additional styling
   document.body.className = document.body.className.replace(/theme-\w+/g, '');

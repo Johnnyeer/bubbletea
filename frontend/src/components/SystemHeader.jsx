@@ -93,12 +93,7 @@ export default function SystemHeader({
                     <h1 className="tea-header__title">{getRoleTitle(normalizedRole)}</h1>
                     <p className="tea-header__subtitle">{subtitle || roleTagline}</p>
                 </div>
-                {(healthChip || trimmedStatusMessage) && (
-                    <div className="tea-header__status">
-                        {healthChip}
-                        {trimmedStatusMessage && <span className="tea-chip">{trimmedStatusMessage}</span>}
-                    </div>
-                )}
+
             </div>
             {navItems.length > 0 && <nav className="tea-header__nav">{navItems}</nav>}
         </header>

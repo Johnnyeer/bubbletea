@@ -8,7 +8,11 @@ const SHIFT_END_HOUR = 22; // exclusive end hour
 const formatTimeRange = (startHour, endHour) => {
     const format = hour =>
         new Date(0, 0, 0, hour)
-            .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+            .toLocaleTimeString([], { 
+                hour: "numeric", 
+                minute: "2-digit",
+                hour12: true 
+            })
             .replace(":00", "");
     return `${format(startHour)} - ${format(endHour)}`;
 };
@@ -19,7 +23,11 @@ const SHIFT_SLOTS = Array.from({ length: SHIFT_END_HOUR - SHIFT_START_HOUR }, (_
     const key = `${String(startHour).padStart(2, "0")}:00`;
     return {
         key,
-        label: new Date(0, 0, 0, startHour).toLocaleTimeString([], { hour: "numeric" }),
+        label: new Date(0, 0, 0, startHour).toLocaleTimeString([], { 
+            hour: "numeric", 
+            minute: "2-digit",
+            hour12: true 
+        }).replace(":00", ""),
         window: formatTimeRange(startHour, endHour),
     };
 });
@@ -128,46 +136,51 @@ const refreshButtonStyle = {
 };
 
 const tableWrapperStyle = {
-    overflowX: "auto",
+    width: "100%",
 };
 const scheduleTableStyle = {
     borderCollapse: "collapse",
     width: "100%",
-    minWidth: 960,
+    tableLayout: "fixed",
 };
 
 const timeHeaderCellStyle = {
     border: "1px solid var(--tea-border)",
     background: "#f1f5f9",
-    padding: "10px 12px",
+    padding: "6px 8px",
     fontWeight: 600,
     textAlign: "left",
-    width: 140,
+    width: "120px",
+    fontSize: 12,
 };
 
 const dayHeaderCellStyle = {
     border: "1px solid var(--tea-border)",
     background: "#f1f5f9",
-    padding: "10px 12px",
+    padding: "6px 4px",
     fontWeight: 600,
     textAlign: "center",
-    fontSize: 14,
+    fontSize: 12,
+    width: "calc((100% - 120px) / 7)",
 };
 
 const timeCellStyle = {
     border: "1px solid var(--tea-border)",
     background: "#f8fafc",
-    padding: "8px 12px",
+    padding: "4px 8px",
     fontWeight: 600,
-    fontSize: 14,
+    fontSize: 11,
     whiteSpace: "nowrap",
 };
 
 const scheduleCellStyle = {
     border: "1px solid var(--tea-border)",
-    padding: "8px 12px",
+    padding: "4px 6px",
     verticalAlign: "top",
     background: "#fff",
+    cursor: "pointer",
+    position: "relative",
+    minHeight: "40px",
 };
 
 const scheduleCellHighlightStyle = {
@@ -175,55 +188,50 @@ const scheduleCellHighlightStyle = {
     borderColor: "var(--tea-secondary)",
 };
 
-const cellContentStyle = {
-    display: "grid",
-    gap: 8,
+const selectedCellStyle = {
+    background: "rgba(34, 197, 94, 0.15)",
+    borderColor: "rgb(34, 197, 94)",
+    borderWidth: "2px",
 };
 
-const assignmentListStyle = {
-    display: "grid",
-    gap: 6,
+const assignedCellStyle = {
+    background: "rgba(59, 130, 246, 0.15)",
+    borderColor: "rgb(59, 130, 246)",
 };
 
-const assignmentItemStyle = {
+const modalOverlayStyle = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "rgba(0, 0, 0, 0.5)",
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+};
+
+const modalContentStyle = {
+    background: "white",
+    padding: "24px",
+    borderRadius: "12px",
+    minWidth: "320px",
+    maxWidth: "480px",
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+};
+
+const bulkActionButtonsStyle = {
+    display: "flex",
     gap: 12,
-    padding: "6px 8px",
-    borderRadius: 8,
-    border: "1px solid var(--tea-border)",
-    background: "#f8fafc",
+    justifyContent: "center",
+    marginTop: 16,
+    paddingTop: 16,
+    borderTop: "1px solid var(--tea-border)",
 };
 
 const assignmentMetaTextStyle = {
     fontSize: 12,
-    color: "var(--tea-muted)",
-};
-
-const emptyCellTextStyle = {
-    fontSize: 13,
-    color: "var(--tea-muted)",
-};
-
-const cellActionsStyle = {
-    display: "grid",
-    gap: 8,
-};
-
-const actionsRowStyle = {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-};
-
-const assignLabelTextStyle = {
-    fontSize: 13,
-    fontWeight: 600,
-};
-
-const staffUnavailableTextStyle = {
-    fontSize: 13,
     color: "var(--tea-muted)",
 };
 
@@ -275,9 +283,15 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
     const [weekStartIso, setWeekStartIso] = useState(() => toLocalISODate(startOfWeek(new Date())));
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
-    const [assignmentInputs, setAssignmentInputs] = useState({});
+
     const [pendingKey, setPendingKey] = useState(null);
     const [staffOptions, setStaffOptions] = useState([]);
+    
+    // New state for redesigned functionality
+    const [selectedSlots, setSelectedSlots] = useState(new Set());
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [modalSlot, setModalSlot] = useState(null);
+    const [isProcessingBulk, setIsProcessingBulk] = useState(false);
 
     const updateStatus = typeof onStatusMessage === "function" ? onStatusMessage : (msg => system?.onStatusMessage?.(msg));
 
@@ -399,11 +413,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         return lookup;
     }, [shifts]);
 
-    const getAssignmentKey = (isoDate, shiftKey) => `${isoDate}__${shiftKey}`;
 
-    const handleAssignmentInputChange = (dateIso, shiftName, value) => {
-        setAssignmentInputs(prev => ({ ...prev, [getAssignmentKey(dateIso, shiftName)]: value }));
-    };
 
     const handleClaimShift = async (dateIso, shiftName, staffOverride) => {
         const finalStaffId = staffOverride ?? (canManageAll ? viewerId : undefined);
@@ -436,9 +446,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                 throw new Error(data.error || "Unable to assign shift");
             }
             updateStatus?.(`Shift assigned for ${dateIso}.`);
-            if (canManageAll) {
-                setAssignmentInputs(prev => ({ ...prev, [getAssignmentKey(dateIso, shiftName)]: "" }));
-            }
+
             await loadShifts();
         } catch (err) {
             const message = err.message || "Unable to assign shift";
@@ -471,6 +479,165 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
             setPendingKey(null);
         }
     };
+
+    // New handlers for redesigned functionality
+    const handleSlotClick = (day, slot) => {
+        const slotKey = `${day.iso}-${slot.key}`;
+        const dayAssignments = shiftLookup.get(day.iso) || {};
+        const slotAssignments = dayAssignments[slot.key] || [];
+        const viewerHasShift = slotAssignments.some(item => item.staff_id === viewerId);
+
+        if (canManageAll) {
+            // Manager: Show assignment modal
+            setModalSlot({ day, slot });
+            setShowAssignModal(true);
+        } else {
+            // Staff: Toggle selection for own shifts or select open slots
+            if (viewerHasShift) {
+                // If already assigned, add to removal selection
+                setSelectedSlots(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(slotKey)) {
+                        newSet.delete(slotKey);
+                    } else {
+                        newSet.add(slotKey);
+                    }
+                    return newSet;
+                });
+            } else if (slotAssignments.length === 0) {
+                // If open slot, add to add selection
+                setSelectedSlots(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(slotKey)) {
+                        newSet.delete(slotKey);
+                    } else {
+                        newSet.add(slotKey);
+                    }
+                    return newSet;
+                });
+            }
+        }
+    };
+
+    const handleAssignToStaff = async (staffId) => {
+        if (!modalSlot || !staffId) return;
+        
+        const { day, slot } = modalSlot;
+        setPendingKey(`assign-${day.iso}-${slot.key}`);
+        setError("");
+        
+        try {
+            const payload = { 
+                shift_date: day.iso, 
+                shift_name: slot.key,
+                staff_id: Number(staffId)
+            };
+            
+            const response = await fetch("/api/v1/schedule", {
+                method: "POST",
+                headers,
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || "Unable to assign shift");
+            }
+            updateStatus?.(`Shift assigned for ${day.iso}.`);
+            await loadShifts();
+            setShowAssignModal(false);
+            setModalSlot(null);
+        } catch (err) {
+            const message = err.message || "Unable to assign shift";
+            setError(message);
+            updateStatus?.(message);
+        } finally {
+            setPendingKey(null);
+        }
+    };
+
+    const handleBulkAddShifts = async () => {
+        if (selectedSlots.size === 0) return;
+        
+        setIsProcessingBulk(true);
+        setError("");
+        
+        try {
+            const promises = Array.from(selectedSlots).map(async (slotKey) => {
+                const [dateIso, shiftName] = slotKey.split('-');
+                const payload = { 
+                    shift_date: dateIso, 
+                    shift_name: shiftName 
+                };
+                
+                const response = await fetch("/api/v1/schedule", {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify(payload),
+                });
+                
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.error || `Failed to add shift ${slotKey}`);
+                }
+            });
+            
+            await Promise.all(promises);
+            updateStatus?.(`Added ${selectedSlots.size} shifts.`);
+            setSelectedSlots(new Set());
+            await loadShifts();
+        } catch (err) {
+            const message = err.message || "Unable to add shifts";
+            setError(message);
+            updateStatus?.(message);
+        } finally {
+            setIsProcessingBulk(false);
+        }
+    };
+
+    const handleBulkRemoveShifts = async () => {
+        if (selectedSlots.size === 0) return;
+        
+        setIsProcessingBulk(true);
+        setError("");
+        
+        try {
+            const shiftsToRemove = [];
+            
+            // Find the shift IDs for selected slots
+            selectedSlots.forEach(slotKey => {
+                const [dateIso, shiftName] = slotKey.split('-');
+                const dayAssignments = shiftLookup.get(dateIso) || {};
+                const slotAssignments = dayAssignments[shiftName] || [];
+                const viewerShift = slotAssignments.find(item => item.staff_id === viewerId);
+                if (viewerShift) {
+                    shiftsToRemove.push(viewerShift);
+                }
+            });
+            
+            const promises = shiftsToRemove.map(async (shift) => {
+                const response = await fetch(`/api/v1/schedule/${shift.id}`, {
+                    method: "DELETE",
+                    headers,
+                });
+                
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.error || `Failed to remove shift ${shift.id}`);
+                }
+            });
+            
+            await Promise.all(promises);
+            updateStatus?.(`Removed ${shiftsToRemove.length} shifts.`);
+            setSelectedSlots(new Set());
+            await loadShifts();
+        } catch (err) {
+            const message = err.message || "Unable to remove shifts";
+            setError(message);
+            updateStatus?.(message);
+        } finally {
+            setIsProcessingBulk(false);
+        }
+    };
     if (!isStaff) {
         return (
             <SystemLayout system={system}>
@@ -489,108 +656,41 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
         const dayAssignments = shiftLookup.get(day.iso) || {};
         const slotAssignments = dayAssignments[slot.key] || [];
         const viewerHasShift = slotAssignments.some(item => item.staff_id === viewerId);
-        const assignmentKey = getAssignmentKey(day.iso, slot.key);
-        const inputValue = assignmentInputs[assignmentKey] ?? "";
-        const claimDisabled = pendingKey === `claim-${day.iso}-${slot.key}`;
-        const removingShiftId = pendingKey?.startsWith("remove-") ? Number(pendingKey.replace("remove-", "")) : null;
-        const cellStyle = viewerHasShift ? { ...scheduleCellStyle, ...scheduleCellHighlightStyle } : scheduleCellStyle;
+        const slotKey = `${day.iso}-${slot.key}`;
+        const isSelected = selectedSlots.has(slotKey);
+        
+        // Determine cell style based on state
+        let cellStyle = { ...scheduleCellStyle };
+        if (isSelected) {
+            cellStyle = { ...cellStyle, ...selectedCellStyle };
+        } else if (viewerHasShift) {
+            cellStyle = { ...cellStyle, ...scheduleCellHighlightStyle };
+        } else if (slotAssignments.length > 0) {
+            cellStyle = { ...cellStyle, ...assignedCellStyle };
+        }
+        
         return (
-            <td key={`${day.iso}-${slot.key}`} style={cellStyle}>
-                <div style={cellContentStyle}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                        <span style={{ fontWeight: 600 }}>
-                            {slotAssignments.length === 0 ? "Open shift" : `${slotAssignments.length} scheduled`}
-                        </span>
-                        <span style={assignmentMetaTextStyle}>{slot.window}</span>
-                    </div>
-                    {viewerHasShift && (
-                        <span style={{ ...assignmentMetaTextStyle, color: "var(--tea-secondary)", fontWeight: 600 }}>
-                            You're scheduled
-                        </span>
+            <td 
+                key={`${day.iso}-${slot.key}`} 
+                style={cellStyle}
+                onClick={() => handleSlotClick(day, slot)}
+                title={canManageAll ? "Click to assign staff" : "Click to select shift"}
+            >
+                <div style={{ textAlign: "center", fontSize: 10 }}>
+                    {slotAssignments.length === 0 ? (
+                        <span style={{ color: "#888" }}>Open</span>
+                    ) : (
+                        <div>
+                            {slotAssignments.map((item, index) => (
+                                <div key={item.id} style={{ 
+                                    fontWeight: item.staff_id === viewerId ? 600 : 400,
+                                    color: item.staff_id === viewerId ? "var(--tea-secondary)" : "#333"
+                                }}>
+                                    {item.staff_name || `#${item.staff_id}`}
+                                </div>
+                            ))}
+                        </div>
                     )}
-                    <div style={assignmentListStyle}>
-                        {slotAssignments.length === 0 ? (
-                            <span style={emptyCellTextStyle}>No one scheduled</span>
-                        ) : (
-                            slotAssignments.map(item => {
-                                const removing = removingShiftId === item.id;
-                                const viewerEntry = item.staff_id === viewerId;
-                                const entryStyle = viewerEntry
-                                    ? { ...assignmentItemStyle, borderColor: "var(--tea-secondary)", background: "rgba(221, 214, 254, 0.4)" }
-                                    : assignmentItemStyle;
-                                return (
-                                    <div key={item.id} style={entryStyle}>
-                                        <div>
-                                            <div style={{ fontWeight: 600 }}>{item.staff_name || `Staff #${item.staff_id}`}</div>
-                                            <div style={assignmentMetaTextStyle}>{item.role || "staff"}</div>
-                                        </div>
-                                        {(canManageAll || viewerEntry) && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveShift(item)}
-                                                disabled={pendingKey === `remove-${item.id}`}
-                                                style={{ ...secondaryButtonStyle, padding: "4px 10px", opacity: removing ? 0.7 : 1, cursor: removing ? "wait" : "pointer" }}
-                                            >
-                                                {removing ? "Removing..." : "Remove"}
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                    <div style={cellActionsStyle}>
-                        {canManageAll ? (
-                            <>
-                                <div style={{ display: "grid", gap: 6 }}>
-                                    <span style={assignLabelTextStyle}>Assign to</span>
-                                    {staffOptions.length === 0 ? (
-                                        <span style={staffUnavailableTextStyle}>No staff available</span>
-                                    ) : (
-                                        <select
-                                            value={String(inputValue || "")}
-                                            onChange={event => handleAssignmentInputChange(day.iso, slot.key, event.target.value)}
-                                            style={{ ...inputStyle, minWidth: 180 }}
-                                        >
-                                            <option value="">Select staff</option>
-                                            {staffOptions.map(option => (
-                                                <option key={option.id} value={option.id}>
-                                                    {option.full_name} (#{option.id})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                </div>
-                                <div style={actionsRowStyle}>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleClaimShift(day.iso, slot.key, inputValue)}
-                                        disabled={claimDisabled || staffOptions.length === 0}
-                                        style={{ ...primaryButtonStyle, padding: "6px 14px", opacity: claimDisabled || staffOptions.length === 0 ? 0.7 : 1, cursor: claimDisabled || staffOptions.length === 0 ? "not-allowed" : "pointer" }}
-                                    >
-                                        {claimDisabled ? "Assigning..." : "Assign"}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleClaimShift(day.iso, slot.key, viewerId ?? undefined)}
-                                        disabled={claimDisabled}
-                                        style={{ ...secondaryButtonStyle, padding: "6px 14px", opacity: claimDisabled ? 0.7 : 1, cursor: claimDisabled ? "wait" : "pointer" }}
-                                    >
-                                        Assign Me
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={() => handleClaimShift(day.iso, slot.key)}
-                                disabled={viewerHasShift || claimDisabled}
-                                style={{ ...primaryButtonStyle, padding: "6px 14px", opacity: viewerHasShift || claimDisabled ? 0.6 : 1, cursor: viewerHasShift || claimDisabled ? "not-allowed" : "pointer" }}
-                            >
-                                {viewerHasShift ? "You're scheduled" : claimDisabled ? "Claiming..." : "Claim this shift"}
-                            </button>
-                        )}
-                    </div>
                 </div>
             </td>
         );
@@ -695,12 +795,12 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                                     const headerStyle = day.iso === todayIso
                                         ? { ...dayHeaderCellStyle, background: "#e0f2fe", borderColor: "#38bdf8" }
                                         : dayHeaderCellStyle;
-                                    const dayLabel = day.date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+                                    const dayLabel = day.date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
                                     const weekdayLabel = day.date.toLocaleDateString(undefined, { weekday: "short" });
                                     return (
                                         <th key={day.iso} style={headerStyle}>
-                                            <div style={{ fontSize: 12, letterSpacing: "0.08em" }}>{weekdayLabel.toUpperCase()}</div>
-                                            <div style={{ fontSize: 16, fontWeight: 600 }}>{dayLabel}</div>
+                                            <div style={{ fontSize: 10, letterSpacing: "0.08em" }}>{weekdayLabel.toUpperCase()}</div>
+                                            <div style={{ fontSize: 12, fontWeight: 600 }}>{dayLabel}</div>
                                         </th>
                                     );
                                 })}
@@ -710,8 +810,7 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                             {SHIFT_SLOTS.map(slot => (
                                 <tr key={slot.key}>
                                     <th scope="row" style={timeCellStyle}>
-                                        <div>{slot.label}</div>
-                                        <div style={assignmentMetaTextStyle}>{slot.window}</div>
+                                        <div style={{ fontWeight: 600 }}>{slot.label}</div>
                                     </th>
                                     {upcomingDays.map(day => renderShiftCell(day, slot))}
                                 </tr>
@@ -719,7 +818,89 @@ export default function SchedulingPage({ system, session, navigate, token, onSta
                         </tbody>
                     </table>
                 </div>
+                
+                {/* Bulk action buttons for staff */}
+                {!canManageAll && selectedSlots.size > 0 && (
+                    <div style={bulkActionButtonsStyle}>
+                        <button
+                            type="button"
+                            onClick={handleBulkAddShifts}
+                            disabled={isProcessingBulk}
+                            style={{
+                                ...primaryButtonStyle,
+                                opacity: isProcessingBulk ? 0.7 : 1,
+                                cursor: isProcessingBulk ? "wait" : "pointer"
+                            }}
+                        >
+                            {isProcessingBulk ? "Processing..." : `Add ${selectedSlots.size} Shifts`}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleBulkRemoveShifts}
+                            disabled={isProcessingBulk}
+                            style={{
+                                ...secondaryButtonStyle,
+                                opacity: isProcessingBulk ? 0.7 : 1,
+                                cursor: isProcessingBulk ? "wait" : "pointer"
+                            }}
+                        >
+                            {isProcessingBulk ? "Processing..." : `Remove ${selectedSlots.size} Shifts`}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedSlots(new Set())}
+                            style={secondaryButtonStyle}
+                        >
+                            Clear Selection
+                        </button>
+                    </div>
+                )}
             </section>
+            
+            {/* Assignment Modal for Managers */}
+            {showAssignModal && modalSlot && (
+                <div style={modalOverlayStyle} onClick={() => setShowAssignModal(false)}>
+                    <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
+                        <h3 style={{ margin: "0 0 16px 0" }}>Assign Shift</h3>
+                        <p style={{ margin: "0 0 16px 0", color: "var(--tea-muted)" }}>
+                            {modalSlot.day.label} at {modalSlot.slot.label}
+                        </p>
+                        
+                        {staffOptions.length === 0 ? (
+                            <p style={{ color: "var(--tea-muted)" }}>No staff available</p>
+                        ) : (
+                            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+                                {staffOptions.map(option => (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() => handleAssignToStaff(option.id)}
+                                        disabled={pendingKey}
+                                        style={{
+                                            ...secondaryButtonStyle,
+                                            textAlign: "left",
+                                            opacity: pendingKey ? 0.7 : 1,
+                                            cursor: pendingKey ? "wait" : "pointer"
+                                        }}
+                                    >
+                                        {option.full_name} (#{option.id}) - {option.role || "staff"}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowAssignModal(false)}
+                                style={secondaryButtonStyle}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </SystemLayout>
     );
 }

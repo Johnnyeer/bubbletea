@@ -1,5 +1,5 @@
 """Database bootstrap utilities."""
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from decimal import Decimal
 from sqlalchemy import inspect, select, func
 from werkzeug.security import generate_password_hash
@@ -26,9 +26,21 @@ SEED_STAFF_ACCOUNTS = [
 ]
 
 SEED_MEMBER_ACCOUNTS = [
-    {"username": "member1", "email": "member1@example.com", "full_name": "Member One"},
-    {"username": "member2", "email": "member2@example.com", "full_name": "Member Two"},
-    {"username": "member3", "email": "member3@example.com", "full_name": "Member Three"},
+    {
+        "email": "member1@example.com", 
+        "full_name": "Member One",
+        "created_at": datetime(2023, 8, 15, 14, 30, 0)  # August 15, 2023
+    },
+    {
+        "email": "member2@example.com", 
+        "full_name": "Member Two",
+        "created_at": datetime(2024, 1, 22, 10, 15, 0)  # January 22, 2024
+    },
+    {
+        "email": "member3@example.com", 
+        "full_name": "Member Three",
+        "created_at": datetime(2024, 3, 8, 16, 45, 0)  # March 8, 2024
+    },
 ]
 
 
@@ -88,14 +100,15 @@ def _seed_staff_accounts() -> None:
 def _seed_member_accounts() -> None:
     with SessionLocal() as session:
         for seed in SEED_MEMBER_ACCOUNTS:
-            existing = session.scalar(select(Member).where(Member.username == seed["username"]))
+            existing = session.scalar(select(Member).where(Member.email == seed["email"]))
             if existing:
                 continue
             member = Member(
-                username=seed["username"],
                 email=seed["email"],
                 password_hash=generate_password_hash("admin"),
                 full_name=seed["full_name"],
+                created_at=seed["created_at"],
+                joined_at=seed["created_at"]
             )
             session.add(member)
         session.commit()
@@ -247,6 +260,7 @@ def bootstrap_database() -> None:
     """Create required tables and default records."""
     with engine.begin() as connection:
         _reset_schedule_schema(connection)
+        _migrate_members_make_username_nullable(connection)
         _migrate_staff_remove_email(connection)
         Base.metadata.create_all(connection)
     _ensure_menu_item_quantity_column()
@@ -258,6 +272,16 @@ def bootstrap_database() -> None:
     _seed_member_accounts()
     _seed_sample_orders()
 
+
+def _migrate_members_make_username_nullable(connection) -> None:
+    """Make username column nullable in members table to support email-only accounts."""
+    inspector = inspect(connection)
+    if "members" not in inspector.get_table_names():
+        return
+    
+    # Always drop and recreate the members table to ensure correct schema
+    connection.exec_driver_sql("DROP TABLE IF EXISTS members")
+    Base.metadata.tables["members"].create(connection)
 
 def _migrate_staff_remove_email(connection) -> None:
     """Drop the legacy staff.email column while retaining data."""

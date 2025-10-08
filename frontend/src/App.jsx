@@ -17,7 +17,7 @@ import sessionManager from "./utils/sessionManager.js";
 import { getThemeForRole, applyTheme } from "./themes.js";
 
 const CUSTOMER_NAVIGATION = [
-    { to: "/order", label: "Member Log In" },
+    { to: "/customer", label: "Member Log In" },
     { to: "/menu", label: "Menu" },
     { to: "/cart", label: "Cart" },
     { to: "/order-summary", label: "Order Summary" },
@@ -343,6 +343,27 @@ export default function App() {
         });
     };
 
+    const handleRemoveFromCart = (itemId) => {
+        setCartItems(previous => {
+            const itemToRemove = previous.find(item => item.id === itemId);
+            if (itemToRemove && itemToRemove.appliedRewards) {
+                // Return any applied rewards back to available pool
+                setAvailableRewards(prev => {
+                    const rewardsToReturn = itemToRemove.appliedRewards.map(rewardId => {
+                        const rewardType = rewardId.includes('free_drink') ? 'free_drink' : 'free_addon';
+                        return {
+                            id: rewardId,
+                            type: rewardType,
+                            status: 'available'
+                        };
+                    });
+                    return [...prev, ...rewardsToReturn];
+                });
+            }
+            return previous.filter(item => item.id !== itemId);
+        });
+    };
+
     const handleCheckout = () => {
         if (cartItems.length === 0 || isSubmittingOrder) {
             return;
@@ -491,7 +512,7 @@ export default function App() {
     
     const isStaffSignedIn = Boolean(isAuthenticated && (viewerRole === "staff" || viewerRole === "manager"));
     const hideNavigationOnHome = currentPath === "/" && !isStaffSignedIn;
-    const hideNavigationOnOrderBeforeAuth = currentPath === "/order" && !isAuthenticated;
+    const hideNavigationOnOrderBeforeAuth = currentPath === "/customer" && !isAuthenticated;
     const navigationLinks = (hideNavigationOnHome || hideNavigationOnOrderBeforeAuth)
         ? []
         : getNavigationForRole(viewerRole).filter(link => !link.requiresAuth || isAuthenticated);
@@ -517,7 +538,7 @@ export default function App() {
     };
 
     switch (currentPath) {
-        case "/order":
+        case "/customer":
             return (
                 <SystemLayout system={systemProps}>
                     <OrderPage
@@ -560,6 +581,7 @@ export default function App() {
                     availableRewards={availableRewards}
                     session={sessionProps}
                     onUpdateCartItem={handleUpdateCartItem}
+                    onRemoveFromCart={handleRemoveFromCart}
                 />
             );
         case "/schedule":
