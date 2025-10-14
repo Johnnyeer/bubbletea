@@ -8,31 +8,31 @@ The bubble tea management system features an advanced multi-session authenticati
 
 The original system had a critical limitation: **only one user could be logged in at a time per browser**. This caused:
 
-- ❌ **Session Conflicts**: Different user sessions would overwrite each other
-- ❌ **Permission Errors**: Role validation failed due to conflicting user data  
-- ❌ **Poor UX**: Constant logging in/out required to switch between roles
-- ❌ **Data Corruption**: Session data corruption when different account types mixed
+- **Session Conflicts**: Different user sessions would overwrite each other
+- **Permission Errors**: Role validation failed due to conflicting user data  
+- **Poor UX**: Constant logging in/out required to switch between roles
+- **Data Corruption**: Session data corruption when different account types mixed
 
 ## Solution: Multi-Session Management
 
 ### Key Features
 
-#### 🔄 **Seamless Session Switching**
+#### **Seamless Session Switching**
 - Instantly switch between customer and staff accounts without logging out
 - Visual session indicator shows all active sessions with role badges
 - One-click access to any active session
 
-#### 👥 **Concurrent Session Support**  
+#### **Concurrent Session Support**  
 - Each user gets isolated session storage with unique identifiers
 - Complete separation between customer and staff sessions
 - Preserved state when switching between sessions
 
-#### 🎨 **Enhanced Login Experience**
+#### **Enhanced Login Experience**
 - Login mode switcher toggles between customer and staff forms
 - Role-specific input fields (email vs username)
 - Smart session detection automatically switches to existing sessions
 
-#### 🛡️ **Robust Session Management**
+#### **Robust Session Management**
 - Sessions survive browser refreshes and navigation
 - Automatic cleanup of invalid/expired sessions
 - Seamless migration from legacy single-session data
@@ -77,17 +77,17 @@ sessionManager.findExistingSession(accountType, identifier)
 
 ### Security Features
 
-#### 🔐 **Session Isolation**
+#### **Session Isolation**
 - Unique identifiers and storage keys per session
 - No data leakage between different user sessions
 - Independent JWT token management
 
-#### 🛡️ **Permission Validation**
+#### **Permission Validation**
 - Backend validates tokens independently per request
 - Role-based access control remains intact
 - No session confusion at API level
 
-#### 🔄 **Secure Lifecycle**
+#### **Secure Lifecycle**
 - Automatic cleanup of invalid sessions
 - Proper session expiration handling
 - Secure token storage and rotation
@@ -143,17 +143,17 @@ staff: id, username, password_hash, full_name, role, is_active
 
 ## Benefits
 
-### ✅ **User Experience**
+### **User Experience**
 - **Convenience**: No constant login/logout cycles
 - **Flexibility**: Instant role switching as needed
 - **Clarity**: Always know which account is active
 
-### ✅ **Operational Efficiency**
+### **Operational Efficiency**
 - **Manager Productivity**: Test customer features without losing admin access
 - **Staff Training**: Easy demonstration of different user experiences  
 - **Customer Support**: Help customers while maintaining staff access
 
-### ✅ **Development Benefits**
+### **Development Benefits**
 - **Testing**: Simultaneous multi-role testing capabilities
 - **Debugging**: Easy reproduction of permission issues
 - **Maintenance**: Clear session management and debugging tools

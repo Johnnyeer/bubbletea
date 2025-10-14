@@ -57,4 +57,4 @@ Uses CSS-in-JS with shared style objects in `components/styles.js`:
 - Theme support
 - Responsive breakpoints
 
-For detailed development information, see [../docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md)
+For detailed development information, see [../DEVELOPMENT.md](../DEVELOPMENT.md)

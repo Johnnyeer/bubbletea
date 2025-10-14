@@ -2,7 +2,7 @@
 
 A comprehensive full-stack web application for managing bubble tea shop operations, featuring customer ordering, staff management, inventory tracking, scheduling, and analytics.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
@@ -26,7 +26,7 @@ A comprehensive full-stack web application for managing bubble tea shop operatio
    - **Backend API**: http://localhost:8000
    - **Health Check**: http://localhost:8000/api/v1/health
 
-## 🏗️ Architecture
+## Architecture
 
 ### Tech Stack
 - **Frontend**: React + Vite (SPA)
@@ -46,34 +46,105 @@ A comprehensive full-stack web application for managing bubble tea shop operatio
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-## ✨ Features
+### Detailed Architecture
+
+#### Component Flow
+```
++------------------------------+
+| Browser (React SPA via Vite) |
++---------------+--------------+
+                |
+        HTTPS /api/* + JWT
+                |
++---------------v--------------+
+| Flask App (backend/app)      |
+| - create_app() factory       |
+| - Blueprints: auth, items,   |
+|   orders, schedules, analytics|
++---------------+--------------+
+                |
+        SQLAlchemy ORM Session
+                |
++---------------v--------------+
+| SQLite (data/app.db)         |
+| - Base.metadata migrations   |
+| - Seeded admin + menu stock  |
++------------------------------+
+                |
+       Docker volume ./data    
+```
+
+#### Docker Deployment
+```
++------------------+    depends_on     +------------------+
+| web (frontend)   | ----------------> | api (backend)    |
+| build: ./frontend|                   | build: ./backend |
+| publishes :80    |                   | exposes :8000    |
++------------------+                   +---------+--------+
+                                                |
+                          bind mount ./data <---+
+                                                |
+                                    SQLite database file
+```
+
+- Frontend SPA issues fetches against `/api/*`, attaching JWTs when authenticated
+- Flask handles routing, authorization, and inventory logic before persisting through SQLAlchemy
+- SQLite stores shared state; helper routines ensure schema upgrades and default records on startup
+- Shared `./data` volume keeps `app.db` persistent across container rebuilds
+
+## Features
 
 ### For Customers
-- 🛒 **Menu Browsing** - Browse drinks with customization options
-- 🛍️ **Order Placement** - Add items to cart and checkout
-- 👤 **Member Registration** - Create account for rewards
-- 🎁 **Loyalty Rewards** - Earn free drinks and add-ons
-- 📱 **Order Tracking** - Real-time order status updates
+- **Menu Browsing** - Browse drinks with customization options
+- **Order Placement** - Add items to cart and checkout
+- **Member Registration** - Create account for rewards
+- **Loyalty Rewards** - Earn free drinks and add-ons
+- **Order Tracking** - Real-time order status updates
 
 ### For Staff
-- 📋 **Order Management** - View and process customer orders
-- 📊 **Live Dashboard** - Real-time queue and order status
-- 📅 **Shift Scheduling** - Claim and manage work shifts
-- 📈 **Analytics** - Sales metrics and performance data
+- **Order Management** - View and process customer orders
+- **Live Dashboard** - Real-time queue and order status
+- **Shift Scheduling** - Claim and manage work shifts
+- **Analytics** - Sales metrics and performance data
 
 ### For Managers
-- 👥 **Staff Management** - Create staff accounts and assign roles  
-- 📦 **Inventory Control** - Manage menu items and stock levels
-- 📊 **Advanced Analytics** - Detailed sales and staff reports
-- ⚙️ **System Administration** - Full system configuration access
+- **Staff Management** - Create staff accounts and assign roles  
+- **Inventory Control** - Manage menu items and stock levels
+- **Advanced Analytics** - Detailed sales and staff reports
+- **System Administration** - Full system configuration access
 
 ### Advanced Features
-- 🔄 **Multi-Session Support** - Multiple users can be logged in simultaneously
-- 🎯 **Role-Based Access** - Granular permission system (customer/staff/manager)
-- 🔒 **Secure Authentication** - JWT-based auth with role validation
-- 📱 **Responsive Design** - Works on desktop and mobile devices
+- **Multi-Session Support** - Multiple users can be logged in simultaneously
+- **Role-Based Access** - Granular permission system (customer/staff/manager)
+- **Secure Authentication** - JWT-based auth with role validation
+- **Responsive Design** - Works on desktop and mobile devices
 
-## 🛠️ Development
+## Technical Details
+
+### Database Models
+- **Member**: Customer accounts (email + password hash, joined timestamp)
+- **Staff**: Staff and manager accounts (username, role flag, hire date)
+- **MenuItem**: Master list of teas, milks, and add-ons with price, stock level, and active flag
+- **OrderItem**: Live order queue records with status, total price, and JSON customizations
+- **OrderRecord**: Immutable archive written when orders complete; powers analytics history
+- **ScheduleShift**: Unique staff shift assignments by date and slot
+- **MemberReward**: Loyalty program rewards and promotional codes
+
+### Backend Services
+- **Authentication System** (`/api/v1/auth/`) - User registration, JWT-based login with role validation
+- **Order Management** (`/api/v1/orders/`) - Complete order lifecycle with real-time status tracking
+- **Menu & Inventory** (`/api/v1/items/`) - Dynamic menu management with stock level tracking
+- **Rewards System** (`/api/v1/rewards/`) - Milestone-based rewards and promotional codes
+- **Staff Scheduling** (`/api/v1/schedule/`) - Weekly shift management with workload balancing
+- **Business Analytics** (`/api/v1/analytics/`) - Sales performance and staff utilization metrics
+- **Admin Operations** (`/api/v1/admin/`) - Staff account creation and system administration
+
+### Application Startup
+- `backend/app/__init__.py` builds the Flask app, wires blueprints, and runs database migrations
+- Bootstrap tasks seed menu items, add missing columns, and ensure default manager account
+- Database auto-creates and migrates on startup with seeded data
+
+## Development
 
 ### Local Development Setup
 
@@ -97,14 +168,23 @@ A comprehensive full-stack web application for managing bubble tea shop operatio
 - **Format**: JSON request/response
 
 #### Key Endpoints
+- `POST /api/v1/auth/register` - User registration  
 - `POST /api/v1/auth/login` - User authentication
-- `GET /api/v1/items` - Menu items
+- `GET /api/v1/items` - List menu items
+- `POST /api/v1/items` - Create menu items (manager only)
+- `GET /api/v1/orders` - List orders
 - `POST /api/v1/orders` - Create orders
+- `PATCH /api/v1/orders/<id>` - Update order status
+- `GET /api/v1/rewards` - List member rewards
+- `POST /api/v1/rewards/redeem` - Redeem rewards
+- `GET /api/v1/schedules` - List shifts
+- `POST /api/v1/schedules` - Create shifts
 - `GET /api/v1/analytics/summary` - Sales analytics
+- `GET /api/v1/analytics/shifts` - Staff shift analytics
 
-Full API documentation available in [`docs/API.md`](./docs/API.md)
+Full API documentation available in [`API.md`](./API.md)
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 bubbletea/
@@ -126,12 +206,15 @@ bubbletea/
 │   ├── package.json       # Node dependencies  
 │   └── Dockerfile         # Frontend container
 ├── data/                   # Database storage
-├── docs/                   # Documentation
 ├── docker-compose.yml     # Container orchestration
+├── API.md                 # API documentation
+├── DEPLOYMENT.md          # Deployment guide
+├── DEVELOPMENT.md         # Development guide
+├── MULTI_SESSION.md       # Multi-session auth guide
 └── README.md              # This file
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 - `JWT_SECRET`: Secret key for JWT token signing
@@ -142,14 +225,14 @@ bubbletea/
 - **API Server**: Flask application on port 8000
 - **Database**: SQLite with persistent volume
 
-## 📚 Documentation
+## Documentation
 
-- [**API Documentation**](./docs/API.md) - Complete API reference
-- [**Multi-Session Guide**](./docs/MULTI_SESSION.md) - Advanced authentication features
-- [**Deployment Guide**](./docs/DEPLOYMENT.md) - Production deployment instructions
-- [**Development Guide**](./docs/DEVELOPMENT.md) - Development setup and guidelines
+- [**API Documentation**](./API.md) - Complete API reference
+- [**Multi-Session Guide**](./MULTI_SESSION.md) - Advanced authentication features
+- [**Deployment Guide**](./DEPLOYMENT.md) - Production deployment instructions
+- [**Development Guide**](./DEVELOPMENT.md) - Development setup and guidelines
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -157,19 +240,19 @@ bubbletea/
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🎯 Production Ready
+## Production Ready
 
-✅ **Complete API Coverage** - 21 endpoints fully implemented  
-✅ **Clean Codebase** - No redundant code or excessive comments  
-✅ **Standardized Routes** - Consistent `/api/v1/*` structure  
-✅ **Role-Based Security** - JWT authentication with permissions  
-✅ **Docker Support** - Full containerization for easy deployment  
-✅ **Comprehensive Testing** - API endpoint verification included  
+- **Complete API Coverage** - Full REST API implementation  
+- **Clean Codebase** - No redundant code or excessive comments  
+- **Standardized Routes** - Consistent `/api/v1/*` structure  
+- **Role-Based Security** - JWT authentication with permissions  
+- **Docker Support** - Full containerization for easy deployment  
+- **Comprehensive Testing** - API endpoint verification included  
 
 ---
 
-**Built with ❤️ for efficient bubble tea shop management**
+**Built for efficient bubble tea shop management**
