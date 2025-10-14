@@ -212,6 +212,72 @@ rm ./data/app.db
 cp ./data/app.db ./data/backup_$(date +%Y%m%d).db
 ```
 
+## Frontend-API Integration
+
+### Route-to-Endpoint Mapping
+
+The frontend uses React routing with manual navigation handling in `App.jsx`. Here's how frontend routes map to backend API endpoints:
+
+#### **Customer/Member Routes**
+- **`/customer`** (OrderPage) → Login form calls `POST /api/v1/auth/login`
+- **`/register`** (RegisterPage) → Registration form calls `POST /api/v1/auth/register`
+- **`/menu`** (MenuSelectionPage) → Menu display calls `GET /api/v1/items`
+- **`/cart`** (CartPage) → Checkout calls `POST /api/v1/orders`
+- **`/order-summary`** (OrderSummaryPage) → Order status calls `GET /api/v1/orders`
+- **`/past-orders`** (PastOrdersPage) → Order history calls `GET /api/v1/orders?completed=true`
+- **`/rewards`** (RewardPage) → Rewards display calls `GET /api/v1/rewards`
+
+#### **Staff/Manager Routes**
+- **`/`** (Home/AdminPage) → Dashboard calls `GET /api/v1/items` (inventory view)
+- **`/orders`** (CurrentOrdersPage) → Live queue calls `GET /api/v1/orders`
+  - Order status updates: `PATCH /api/v1/orders/{id}`
+  - Order deletion: `DELETE /api/v1/orders/{id}`
+- **`/analytics`** (AnalyticsPage) → Reports call:
+  - `GET /api/v1/analytics/summary`
+  - `GET /api/v1/analytics/shifts`
+- **`/inventory`** (AdminPage) → Inventory management calls:
+  - `GET /api/v1/items` (view items)
+  - `POST /api/v1/items` (create items)
+  - `PATCH /api/v1/items/{id}/quantity` (adjust stock)
+  - `DELETE /api/v1/items/{id}` (remove items)
+- **`/schedule`** (SchedulingPage) → Staff scheduling calls:
+  - `GET /api/v1/schedule` (view shifts)
+  - `GET /api/v1/schedule/staff` (list staff)
+  - `POST /api/v1/schedule` (create shifts)
+  - `DELETE /api/v1/schedule/{id}` (remove shifts)
+
+#### **Admin Functions**
+- **Account Creation** → `POST /api/v1/admin/accounts`
+- **Reward Codes** → `POST /api/v1/rewards/code`
+
+### Authentication Flow
+
+1. **User Login**: Frontend form (`/customer` or `/staff`) submits credentials to `POST /api/v1/auth/login`
+2. **Token Storage**: JWT token stored in sessionManager with user profile data
+3. **API Requests**: All authenticated requests include `Authorization: Bearer {token}` header
+4. **Multi-Session**: sessionManager handles multiple concurrent user sessions
+
+### State Management
+
+```javascript
+// Session management (utils/sessionManager.js)
+sessionManager.createSession(user, token)  // Store session
+sessionManager.getActiveToken()            // Get current JWT
+sessionManager.switchSession(sessionId)    // Change active user
+
+// API call pattern
+const token = sessionManager.getActiveToken();
+const headers = token ? { Authorization: `Bearer ${token}` } : {};
+fetch('/api/v1/endpoint', { headers })
+```
+
+### Error Handling
+
+- **Authentication Errors (401)**: Redirect to login page
+- **Permission Errors (403)**: Show access denied message
+- **Network Errors**: Display user-friendly error messages
+- **API Errors**: Parse JSON error responses and display to user
+
 ## Frontend Development
 
 ### Architecture

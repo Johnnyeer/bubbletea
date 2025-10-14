@@ -184,6 +184,26 @@ A comprehensive full-stack web application for managing bubble tea shop operatio
 
 Full API documentation available in [`API.md`](./API.md)
 
+### Frontend-Backend Integration
+
+The React frontend communicates with the Flask API through a well-defined integration layer:
+
+#### **Route Integration Examples**
+- **Menu Browsing**: `/menu` page → `GET /api/v1/items` → Display menu with categories
+- **Order Placement**: `/cart` checkout → `POST /api/v1/orders` → Create order items  
+- **Order Management**: `/orders` staff page → `GET /api/v1/orders` → Live queue display
+- **Staff Scheduling**: `/schedule` page → `GET /api/v1/schedule` → Weekly calendar view
+- **Analytics Dashboard**: `/analytics` page → `GET /api/v1/analytics/summary` → Business metrics
+
+#### **Authentication Flow**
+1. User logs in via frontend forms (`/customer` or `/staff` routes)
+2. Credentials sent to `POST /api/v1/auth/login` 
+3. JWT token returned and stored in sessionManager
+4. All subsequent API calls include `Authorization: Bearer {token}` header
+5. Multi-session support allows concurrent user logins
+
+For detailed integration patterns, see [`DEVELOPMENT.md`](./DEVELOPMENT.md)
+
 ## Project Structure
 
 ```
